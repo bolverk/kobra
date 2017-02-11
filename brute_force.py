@@ -3,6 +3,15 @@ import numpy
 from orbital.utilities import eccentric_anomaly_from_true, true_anomaly_from_eccentric
 from orbital.utilities import mean_anomaly_from_eccentric, eccentric_anomaly_from_mean
 from orbital.utilities import orbit_radius
+import logging
+logging.basicConfig(level=logging.INFO)
+handler = logging.FileHandler('brute_force.log')
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger = logging.getLogger(__name__)
+logger.addHandler(handler)
+logger.propagate = False
 
 def solve_kepler_equation(e,M):
 
@@ -189,7 +198,10 @@ def orbital_parameters_from_phase_space_point(fsp,GM=1):
     u = energy_from_phase_space_point(fsp,GM)
     rl = sqr_norm(l)/GM
     e = numpy.sqrt(1+2*sqr_norm(l)*u/GM**2)
-    q = numpy.arccos((1-rl/r)/e)
+    cosq = (rl/r-1)
+    sinq = numpy.dot(fsp['position'],fsp['velocity'])/numpy.sqrt(GM/rl)/r
+    q = numpy.arctan2(sinq,cosq)
+    #q = numpy.arccos((rl/r-1)/e)
     E = eccentric_anomaly_from_true(e,q)
     M = mean_anomaly_from_eccentric(e,E)
     kop = {'semilatus rectum':rl,
@@ -198,6 +210,15 @@ def orbital_parameters_from_phase_space_point(fsp,GM=1):
            'GM':GM}
     dt = convert_mean_anomaly2time(M,kop)
     kop['periapse time'] = fsp['time']-dt
+    mean_motion = 1.0/numpy.sqrt((1-e**2)**3*GM/rl**3)
+    period = 2*numpy.pi*mean_motion
+    while kop['periapse time']<0:
+        kop['periapse time'] += period
+    while kop['periapse time'] > period:
+        kop['periapse time'] -= period
+    logger.debug(str(fsp['time'])+' '+str(kop['periapse time'])+' '+
+                 str(mean_motion)+' '+str(q)+' '+
+                 str(E)+' '+str(M))
     return kop
 
 def estimate_initial_parameters(astrometry, GM=1):
@@ -358,10 +379,12 @@ class TestSuite(unittest.TestCase):
 
     def testEstimateInitialParameters(self):
 
+        logger.debug('pay attention')
+
         kop = {'GM':1.0,
                'semilatus rectum':1.0,
-               'eccentricity':0.1,
-               'periapse time':1,
+               'eccentricity':0.5,
+               'periapse time':0.2,
                'pivot':numpy.zeros(3)}
         time_list = numpy.linspace(0,10,10000)
         ct = generate_complete_trajectory(kop,time_list)

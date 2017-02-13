@@ -13,6 +13,17 @@ logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.propagate = False
 
+def sqr_norm(v):
+
+    return numpy.dot(v,v)
+
+def calc_best_cayley_rotation(x_list, y_list):
+
+    mat = numpy.identity(3)*numpy.sum(sqr_norm(x+y) for x,y in zip(x_list,y_list)) - numpy.sum(numpy.kron(x+y,x+y) for x,y in zip(x_list,y_list)).reshape((3,3))
+    vec = numpy.sum((numpy.cross(x,y) for x,y in zip(x_list,y_list)))
+
+    return 2*numpy.dot(numpy.linalg.inv(mat),vec)
+
 def solve_kepler_equation(e,M):
 
     from scipy.optimize import fsolve
@@ -135,7 +146,6 @@ def fit_parameters_bf(astrometry,GM=1):
         kop = unfold_data(x)
         return eval_chi_2(kop,astrometry)
         
-    rl_guess = numpy.sqrt(numpy.max(astrometry['x'])**2+numpy.max(astrometry['y'])**2)
     temp = minimize(func,[1,0,0,0,0,0],bounds=[(1e-6,100),(0,0.9999),(None,None),(None,None),(None,None),(None,None)])
 
     return unfold_data(temp.x)
@@ -177,10 +187,6 @@ def eval_rotation_chi_2(astrometry, ellipse_params):
     col_vec_2 = numpy.array([position_block[0,1],position_block[1,1],velocity_block[1]])
         
     return (numpy.dot(col_vec_1,col_vec_1)-1)**2+(numpy.dot(col_vec_2,col_vec_2)-1)**2+(numpy.dot(col_vec_1,col_vec_2))**2
-
-def sqr_norm(v):
-
-    return numpy.dot(v,v)
 
 def energy_from_phase_space_point(fsp,GM=1):
 
@@ -263,8 +269,11 @@ def fit_parameters_wr(astrometry,GM=1):
         return eval_rotation_chi_2(astrometry,kop)
 
     initial_guess = estimate_initial_parameters(astrometry,GM)
+    rl = initial_guess['semilatus rectum']
+    e = initial_guess['eccentricity']
+    t0 = initial_guess['periapse time']
         
-    temp = minimize(func,[1,0,0],bounds=[(1e-6,100),(0,0.99),(None,None)])
+    temp = minimize(func,[rl,e,t0],bounds=[(1e-6,100),(0,0.99),(None,None)])
 
     return unfold_data(temp.x)
             
@@ -379,8 +388,6 @@ class TestSuite(unittest.TestCase):
 
     def testEstimateInitialParameters(self):
 
-        logger.debug('pay attention')
-
         kop = {'GM':1.0,
                'semilatus rectum':1.0,
                'eccentricity':0.5,
@@ -401,22 +408,36 @@ class TestSuite(unittest.TestCase):
                                kop['periapse time'],
                                places=4)
 
-    def testFaceOnCircle(self):
-
-        return 0
+    def testBruteForceParameterFit(self):
         
         kop = {'GM':1,
                'semilatus rectum':numpy.random.rand(),
-               'eccentricity':0,
-               'periapse time':1,
-               'pivot':[7,-3,1]}
+               'eccentricity':numpy.random.rand(),
+               'periapse time':numpy.random.rand(),
+               'pivot':numpy.random.rand(3)}
         time_list = numpy.linspace(0,10,100)
         astrometry = generate_astrometry(kop,time_list)
         sol = fit_parameters_wr(astrometry)
-        self.assertAlmostEqual(sol['semilatus rectum'],kop['semilatus rectum'],places=4)
-        self.assertAlmostEqual(sol['eccentricity'],kop['eccentricity'])
-        self.assertAlmostEqual(sol['periapse time'],kop['periapse time'])
-        
+        self.assertAlmostEqual(sol['semilatus rectum'],
+                               kop['semilatus rectum'],
+                               places=1)
+        self.assertAlmostEqual(sol['eccentricity'],
+                               kop['eccentricity'],
+                               places=2)
+        self.assertAlmostEqual(sol['periapse time'],
+                               kop['periapse time'],
+                               places=2)
+
+    def testBestCayleyRotation(self):
+
+        x_list = numpy.random.rand(100,3)
+        pivot = numpy.random.rand(3)
+        rotation = pivot2rotation(pivot)
+        y_list = numpy.dot(rotation,x_list.T).T
+        reproduced = calc_best_cayley_rotation(x_list,y_list)
+        for p1,p2 in zip(pivot,reproduced):
+            self.assertAlmostEqual(p1,p2)
+    
 if __name__ == '__main__':
 
     unittest.main()

@@ -222,9 +222,12 @@ def orbital_parameters_from_phase_space_point(fsp,GM=1):
         kop['periapse time'] += period
     while kop['periapse time'] > period:
         kop['periapse time'] -= period
-    logger.debug(str(fsp['time'])+' '+str(kop['periapse time'])+' '+
-                 str(mean_motion)+' '+str(q)+' '+
-                 str(E)+' '+str(M))
+    a = rl/(1-e**2)
+    r_2d = orbit_radius(a,e,q)*numpy.array([numpy.cos(q),numpy.sin(q),0])
+    v_2d = numpy.sqrt(GM/rl)*numpy.array([-numpy.sin(q),e+numpy.cos(q),0])
+    kop['pivot'] =  calc_best_cayley_rotation(numpy.vstack((r_2d,v_2d)),
+                                              numpy.vstack((fsp['position'],
+                                                            fsp['velocity'])))
     return kop
 
 def estimate_initial_parameters(astrometry, GM=1):
@@ -247,7 +250,8 @@ def estimate_initial_parameters(astrometry, GM=1):
     r_list = numpy.vstack((x_mid_mid,y_mid_mid,z_mid_mid)).T
     v_list = numpy.vstack((vx_mid_mid,vy_mid_mid,vz_mid_mid)).T
     kop_list = [orbital_parameters_from_phase_space_point({'position':r,'velocity':v,'time':t}) for r,v,t in zip(r_list,v_list,t_mid_mid)]
-    res = {field:numpy.average([kop[field] for kop in kop_list]) for field in kop_list[0]}
+    res = {field:numpy.average([kop[field] for kop in kop_list]) for field in kop_list[0] if not field=='pivot'}
+    res['pivot'] = numpy.sum((kop['pivot'] for kop in kop_list))/len(kop_list)
     return res
 
 def fit_parameters_wr(astrometry,GM=1):
@@ -392,7 +396,7 @@ class TestSuite(unittest.TestCase):
                'semilatus rectum':1.0,
                'eccentricity':0.5,
                'periapse time':0.2,
-               'pivot':numpy.zeros(3)}
+               'pivot':numpy.random.rand(3)}
         time_list = numpy.linspace(0,10,10000)
         ct = generate_complete_trajectory(kop,time_list)
         astrometry = generate_astrometry(kop,time_list)
@@ -407,6 +411,11 @@ class TestSuite(unittest.TestCase):
         self.assertAlmostEqual(sol['periapse time'],
                                kop['periapse time'],
                                places=4)
+        print sol['pivot'],kop['pivot']
+        for i in range(3):
+            self.assertAlmostEqual(sol['pivot'][i],
+                                   kop['pivot'][i],
+                                   places=4)
 
     def testBruteForceParameterFit(self):
         

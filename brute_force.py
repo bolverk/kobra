@@ -274,6 +274,19 @@ def calc_gl_position_block(astrometry, trajectory):
         mat_2 += m
     return numpy.dot(mat_2,numpy.linalg.inv(mat_1))
 
+def calc_gl_velocity_block(astrometry, trajectory):
+
+    v2d_list = trajectory['velocity'].T[:2].T
+    mat_list = (numpy.outer(v,v) for v in v2d_list)
+    mat_1 = numpy.zeros((2,2))
+    for m in mat_list:
+        mat_1 += m
+    vec_array = (w*v for w,v in zip(astrometry['vz'],v2d_list))
+    vec_1 = numpy.zeros(2)
+    for v in vec_array:
+        vec_1 += v
+    return numpy.dot(numpy.linalg.inv(mat_1),vec_1)
+
 def fit_parameters_wr(astrometry,GM=1):
 
     from scipy.optimize import minimize
@@ -467,7 +480,7 @@ class TestSuite(unittest.TestCase):
         for p1,p2 in zip(pivot,reproduced):
             self.assertAlmostEqual(p1,p2)
 
-    def testCalcGLPositionBlock(self):
+    def testCalcGLFit(self):
 
         kop = {'GM':1,
                'semilatus rectum':numpy.random.rand(),
@@ -480,7 +493,10 @@ class TestSuite(unittest.TestCase):
         rotation = pivot2rotation(kop['pivot'])
         ad = generate_astrometry(kop,time_list)
         position_block = calc_gl_position_block(ad,ct)
+        velocity_block = calc_gl_velocity_block(ad,ct)
+        print velocity_block,rotation
         for i in range(2):
+            self.assertAlmostEqual(velocity_block[i],rotation[2,i])
             for j in range(2):
                 self.assertAlmostEqual(position_block[i,j],rotation[i,j])
     

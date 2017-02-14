@@ -145,8 +145,14 @@ def fit_parameters_bf(astrometry,GM=1):
     
         kop = unfold_data(x)
         return eval_chi_2(kop,astrometry)
-        
-    temp = minimize(func,[1,0,0,0,0,0],bounds=[(1e-6,100),(0,0.9999),(None,None),(None,None),(None,None),(None,None)])
+
+    ig = estimate_initial_parameters(astrometry)
+    temp = minimize(func,[ig['semilatus rectum'],
+                          ig['eccentricity'],
+                          ig['periapse time'],
+                          ig['pivot'][0],
+                          ig['pivot'][1],
+                          ig['pivot'][2]],bounds=[(1e-6,100),(0,0.9999),(None,None),(None,None),(None,None),(None,None)])
 
     return unfold_data(temp.x)
     
@@ -426,7 +432,7 @@ class TestSuite(unittest.TestCase):
                'pivot':numpy.random.rand(3)}
         time_list = numpy.linspace(0,10,100)
         astrometry = generate_astrometry(kop,time_list)
-        sol = fit_parameters_wr(astrometry)
+        sol = fit_parameters_bf(astrometry)
         self.assertAlmostEqual(sol['semilatus rectum'],
                                kop['semilatus rectum'],
                                places=1)

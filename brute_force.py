@@ -260,6 +260,20 @@ def estimate_initial_parameters(astrometry, GM=1):
     res['pivot'] = numpy.sum((kop['pivot'] for kop in kop_list))/len(kop_list)
     return res
 
+def calc_gl_position_block(astrometry, trajectory):
+
+    s2d_list = trajectory['position'].T[:2].T
+    r2d_list = numpy.vstack((astrometry['x'],astrometry['y'])).T
+    mat_list = (numpy.outer(s,s) for s in s2d_list)
+    mat_1 = numpy.zeros((2,2))
+    for m in mat_list:
+        mat_1 += m
+    mat_list = (numpy.outer(r,s) for r,s in zip(r2d_list,s2d_list))
+    mat_2 = numpy.zeros((2,2))
+    for m in mat_list:
+        mat_2 += m
+    return numpy.dot(mat_2,numpy.linalg.inv(mat_1))
+
 def fit_parameters_wr(astrometry,GM=1):
 
     from scipy.optimize import minimize
@@ -427,7 +441,7 @@ class TestSuite(unittest.TestCase):
         
         kop = {'GM':1,
                'semilatus rectum':numpy.random.rand(),
-               'eccentricity':numpy.random.rand(),
+               'eccentricity':0.9*numpy.random.rand(),
                'periapse time':numpy.random.rand(),
                'pivot':numpy.random.rand(3)}
         time_list = numpy.linspace(0,10,100)
@@ -452,6 +466,23 @@ class TestSuite(unittest.TestCase):
         reproduced = calc_best_cayley_rotation(x_list,y_list)
         for p1,p2 in zip(pivot,reproduced):
             self.assertAlmostEqual(p1,p2)
+
+    def testCalcGLPositionBlock(self):
+
+        kop = {'GM':1,
+               'semilatus rectum':numpy.random.rand(),
+               'eccentricity':numpy.random.rand(),
+               'periapse time':numpy.random.rand(),
+               'pivot':numpy.zeros(3)}
+        time_list = numpy.linspace(0,10,1000)
+        ct = generate_complete_trajectory(kop,time_list)
+        kop['pivot'] = numpy.random.rand(3)
+        rotation = pivot2rotation(kop['pivot'])
+        ad = generate_astrometry(kop,time_list)
+        position_block = calc_gl_position_block(ad,ct)
+        for i in range(2):
+            for j in range(2):
+                self.assertAlmostEqual(position_block[i,j],rotation[i,j])
     
 if __name__ == '__main__':
 

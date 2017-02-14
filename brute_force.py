@@ -56,13 +56,24 @@ def convert_time2mean_anomaly(time, kop):
     
 def pivot2generator(pivot):
 
+    from sympy import Eijk
+
     res = numpy.zeros((3,3))
     for i in range(3):
         for j in range(3):
-            if i==(j+1)%3:
-                res[i,j] = pivot[3-i-j]
-            if j==(i+1)%3:
-                res[i,j] = -pivot[3-i-j]
+            for k in range(3):
+                res[i,j] -= Eijk(i,j,k)*pivot[k]
+    return res
+
+def generator2pivot(generator):
+
+    from sympy import Eijk
+
+    res = numpy.zeros(3)
+    for i in range(3):
+        for j in range(3):
+            for k in range(3):
+                res[i] -= 0.5*Eijk(i,j,k)*generator[j,k]
     return res
     
 def generator2rotation(generator):
@@ -444,7 +455,6 @@ class TestSuite(unittest.TestCase):
         self.assertAlmostEqual(sol['periapse time'],
                                kop['periapse time'],
                                places=4)
-        print sol['pivot'],kop['pivot']
         for i in range(3):
             self.assertAlmostEqual(sol['pivot'][i],
                                    kop['pivot'][i],
@@ -499,6 +509,15 @@ class TestSuite(unittest.TestCase):
             self.assertAlmostEqual(velocity_block[i],rotation[2,i])
             for j in range(2):
                 self.assertAlmostEqual(position_block[i,j],rotation[i,j])
+
+    def testGeneratorPivotReciprocity(self):
+
+        pivot = numpy.random.rand(3)
+        generator = pivot2generator(pivot)
+        reproduced = generator2pivot(generator)
+        print pivot, generator,reproduced
+        for a,b in zip(pivot,reproduced):
+            self.assertAlmostEqual(a,b)
     
 if __name__ == '__main__':
 

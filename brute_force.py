@@ -65,6 +65,16 @@ def pivot2generator(pivot):
                 res[i,j] -= Eijk(i,j,k)*pivot[k]
     return res
 
+def calc_pivot_from_gl_rectangle_block(block):
+
+    proj = numpy.zeros((2,3))
+    proj[0,0] = 1
+    proj[1,1] = 1
+    aux = numpy.dot(block+proj.T,(block+proj.T).T)
+    mat = numpy.identity(3)*numpy.trace(aux)-aux
+    vec = generator2pivot(numpy.dot(block,proj))
+    return 4*numpy.dot(numpy.linalg.inv(mat),vec)
+
 def generator2pivot(generator):
 
     from sympy import Eijk
@@ -517,6 +527,18 @@ class TestSuite(unittest.TestCase):
         reproduced = generator2pivot(generator)
         print pivot, generator,reproduced
         for a,b in zip(pivot,reproduced):
+            self.assertAlmostEqual(a,b)
+
+    def testCalcPivotFromGLRectangleBlock(self):
+
+        pivot = numpy.random.rand(3)
+        rotation = pivot2rotation(pivot)
+        proj = numpy.zeros((2,3))
+        proj[0,0] = 1
+        proj[1,1] = 1
+        block = numpy.dot(rotation,proj.T)
+        reproduced = calc_pivot_from_gl_rectangle_block(block)
+        for a,b in zip(pivot, reproduced):
             self.assertAlmostEqual(a,b)
     
 if __name__ == '__main__':

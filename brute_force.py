@@ -12,6 +12,12 @@ handler.setFormatter(formatter)
 logger = logging.getLogger(__name__)
 logger.addHandler(handler)
 logger.propagate = False
+from sympy import Eijk
+
+# Levi Civita Symbol
+lcs = numpy.array([[[Eijk(i,j,k) for k in range(3)]
+                    for j in range(3)]
+                   for i in range(3)], dtype=numpy.float)
 
 def sqr_norm(v):
 
@@ -157,6 +163,37 @@ def eval_chi_2(kop, astrometry):
 def mid_array(ar):
 
     return 0.5*(ar[1:]+ar[:-1])
+
+def fit_small_rotation(astrometry, trajectory):
+
+    W = numpy.array([[1,0,0],[0,1,0],[0,0,0]])
+    Z = numpy.array([[0,0,0],[0,0,0],[0,0,1]])
+    s_list = trajectory['position']
+    r_list = numpy.vstack((astrometry['x'],
+                           astrometry['y'],
+                           numpy.zeros_like(astrometry['x']))).T
+    es_list = numpy.einsum('ijk,lk',lcs,s_list).T
+    u_list = trajectory['velocity']
+    v_list = numpy.vstack((numpy.zeros_like(astrometry['vz']),
+                           numpy.zeros_like(astrometry['vz']),
+                           astrometry['vz'])).T
+    eu_list = numpy.einsum('ijk,lk',lcs,u_list).T
+    m1 = -numpy.einsum('ijk,kl,ilm',es_list,W,es_list)/len(es_list)
+    m2 = -numpy.einsum('ijk,kl,ilm',eu_list,Z,eu_list)/len(eu_list)
+    v1 = numpy.einsum('ijk,jl,nl,nk',lcs,W,r_list,s_list)/len(s_list)
+    v2 = numpy.einsum('ijk,jl,nl,nk',lcs,Z,v_list,u_list)/len(u_list)
+    
+    return -0.5*numpy.dot(numpy.linalg.inv(m1+m2),
+                       v1+v2)
+
+def fit_rotation_to_astrometry(astrometry, trajectory, n_itr=3):
+
+    block = numpy.vstack(
+        calc_gl_position_block(astrometry,trajectory),
+        calc_gl_velocity_block(astrometry,trajectory))
+    pivot = calc_pivot_from_gl_rectangle_block(block)
+    for i in range(n_itr):
+        pivot = refine_pivot(astrometry, trajectory, pivot)
 
 def fit_parameters_bf(astrometry,GM=1):
 
@@ -556,6 +593,23 @@ class TestSuite(unittest.TestCase):
         rotation = pivot2rotation(pivot)
         reproduced = rotation2pivot(rotation)
         for a,b in zip(pivot,reproduced):
+            self.assertAlmostEqual(a,b)
+
+    def testFitSmallRotation(self):
+
+        from time import time
+
+        kop = {'GM':1,
+               'semilatus rectum':numpy.random.rand(),
+               'eccentricity':numpy.random.rand(),
+               'periapse time':numpy.random.rand(),
+               'pivot':numpy.zeros(3)}
+        time_list = numpy.linspace(0,10,1000)
+        ct = generate_complete_trajectory(kop,time_list)
+        kop['pivot'] = 1e-4*numpy.random.rand(3)
+        ad = generate_astrometry(kop,time_list)
+        reproduced = fit_small_rotation(ad,ct)
+        for a,b in zip(kop['pivot'],reproduced):
             self.assertAlmostEqual(a,b)
     
 if __name__ == '__main__':

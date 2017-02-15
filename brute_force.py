@@ -95,6 +95,15 @@ def generator2rotation(generator):
 def pivot2rotation(pivot):
 
     return generator2rotation(pivot2generator(pivot))
+
+def rotation2pivot(rotation):
+
+    i3 = numpy.identity(3)
+    aux = numpy.dot(rotation+i3,
+                    (rotation+i3).T)
+    return 4*numpy.dot(
+        numpy.linalg.inv(i3*numpy.trace(aux)-aux),
+        generator2pivot(rotation))
     
 def generate_complete_trajectory(kop, time_list):
 
@@ -539,6 +548,14 @@ class TestSuite(unittest.TestCase):
         block = numpy.dot(rotation,proj.T)
         reproduced = calc_pivot_from_gl_rectangle_block(block)
         for a,b in zip(pivot, reproduced):
+            self.assertAlmostEqual(a,b)
+
+    def testRotation2PivotReciprocity(self):
+
+        pivot = numpy.random.rand(3)
+        rotation = pivot2rotation(pivot)
+        reproduced = rotation2pivot(rotation)
+        for a,b in zip(pivot,reproduced):
             self.assertAlmostEqual(a,b)
     
 if __name__ == '__main__':

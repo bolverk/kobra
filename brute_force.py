@@ -166,6 +166,9 @@ def mid_array(ar):
 
 def fit_small_rotation(astrometry, trajectory):
 
+    print trajectory['velocity'].T[2][:10]
+    print astrometry['vz'][:10]
+
     W = numpy.array([[1,0,0],[0,1,0],[0,0,0]])
     Z = numpy.array([[0,0,0],[0,0,0],[0,0,1]])
     s_list = trajectory['position']
@@ -180,20 +183,28 @@ def fit_small_rotation(astrometry, trajectory):
     eu_list = numpy.einsum('ijk,lk',lcs,u_list).T
     m1 = -numpy.einsum('ijk,kl,ilm',es_list,W,es_list)/len(es_list)
     m2 = -numpy.einsum('ijk,kl,ilm',eu_list,Z,eu_list)/len(eu_list)
-    v1 = numpy.einsum('ijk,jl,nl,nk',lcs,W,r_list,s_list)/len(s_list)
-    v2 = numpy.einsum('ijk,jl,nl,nk',lcs,Z,v_list,u_list)/len(u_list)
+    v1 = numpy.einsum('ijk,jl,nl,nk',lcs,W,r_list-s_list,s_list)/len(s_list)
+    v2 = numpy.einsum('ijk,jl,nl,nk',lcs,Z,v_list-u_list,u_list)/len(u_list)
+    print v1+v2
+    print
     
     return -0.5*numpy.dot(numpy.linalg.inv(m1+m2),
                        v1+v2)
 
 def fit_rotation_to_astrometry(astrometry, trajectory, n_itr=3):
 
-    block = numpy.vstack(
+    block = numpy.vstack((
         calc_gl_position_block(astrometry,trajectory),
-        calc_gl_velocity_block(astrometry,trajectory))
+        calc_gl_velocity_block(astrometry,trajectory)))
     pivot = calc_pivot_from_gl_rectangle_block(block)
     for i in range(n_itr):
-        pivot = refine_pivot(astrometry, trajectory, pivot)
+        R = pivot2rotation(pivot)
+        new_traj = {'position':numpy.dot(R,trajectory['position'].T).T,
+                    'velocity':numpy.dot(R,trajectory['velocity'].T).T}
+        change = fit_small_rotation(astrometry,new_traj)
+        dR = pivot2rotation(change)
+        pivot = rotation2pivot(numpy.dot(dR,R))
+    return pivot
 
 def fit_parameters_bf(astrometry,GM=1):
 
@@ -560,7 +571,6 @@ class TestSuite(unittest.TestCase):
         ad = generate_astrometry(kop,time_list)
         position_block = calc_gl_position_block(ad,ct)
         velocity_block = calc_gl_velocity_block(ad,ct)
-        print velocity_block,rotation
         for i in range(2):
             self.assertAlmostEqual(velocity_block[i],rotation[2,i])
             for j in range(2):
@@ -571,7 +581,6 @@ class TestSuite(unittest.TestCase):
         pivot = numpy.random.rand(3)
         generator = pivot2generator(pivot)
         reproduced = generator2pivot(generator)
-        print pivot, generator,reproduced
         for a,b in zip(pivot,reproduced):
             self.assertAlmostEqual(a,b)
 
@@ -609,6 +618,23 @@ class TestSuite(unittest.TestCase):
         kop['pivot'] = 1e-4*numpy.random.rand(3)
         ad = generate_astrometry(kop,time_list)
         reproduced = fit_small_rotation(ad,ct)
+        for a,b in zip(kop['pivot'],reproduced):
+            self.assertAlmostEqual(a,b)
+
+    def testFitRotation(self):
+
+        from time import time
+
+        kop = {'GM':1,
+               'semilatus rectum':numpy.random.rand(),
+               'eccentricity':numpy.random.rand(),
+               'periapse time':numpy.random.rand(),
+               'pivot':numpy.zeros(3)}
+        time_list = numpy.linspace(0,10,1000)
+        ct = generate_complete_trajectory(kop,time_list)
+        kop['pivot'] = numpy.random.rand(3)
+        ad = generate_astrometry(kop,time_list)
+        reproduced = fit_rotation_to_astrometry(ad,ct,n_itr=3)
         for a,b in zip(kop['pivot'],reproduced):
             self.assertAlmostEqual(a,b)
     

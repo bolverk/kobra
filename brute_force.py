@@ -166,9 +166,6 @@ def mid_array(ar):
 
 def fit_small_rotation(astrometry, trajectory):
 
-    print trajectory['velocity'].T[2][:10]
-    print astrometry['vz'][:10]
-
     W = numpy.array([[1,0,0],[0,1,0],[0,0,0]])
     Z = numpy.array([[0,0,0],[0,0,0],[0,0,1]])
     s_list = trajectory['position']
@@ -185,8 +182,6 @@ def fit_small_rotation(astrometry, trajectory):
     m2 = -numpy.einsum('ijk,kl,ilm',eu_list,Z,eu_list)/len(eu_list)
     v1 = numpy.einsum('ijk,jl,nl,nk',lcs,W,r_list-s_list,s_list)/len(s_list)
     v2 = numpy.einsum('ijk,jl,nl,nk',lcs,Z,v_list-u_list,u_list)/len(u_list)
-    print v1+v2
-    print
     
     return -0.5*numpy.dot(numpy.linalg.inv(m1+m2),
                        v1+v2)
@@ -241,36 +236,10 @@ def eval_rotation_chi_2(astrometry, ellipse_params):
         kop[field] = ellipse_params[field]
     kop['pivot'] = numpy.zeros(3)
     trajectory = generate_complete_trajectory(kop,astrometry['t'])
-        
-    s2d_list = trajectory['position'].T[:2].T
-    r2d_list = numpy.vstack((astrometry['x'],astrometry['y'])).T
-    mat_list = [numpy.outer(s,s) for s in s2d_list]
-    mat_1 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_1 += m
-    mat_list = [numpy.outer(r,s) for r,s in zip(r2d_list,s2d_list)]
-    mat_2 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_2 += m
-    position_block = numpy.dot(mat_2,numpy.linalg.inv(mat_1))
-        
-    v2d_list = trajectory['velocity'].T[:2].T
-    #mat_1 = numpy.sum([numpy.outer(v,v) for v in v2d_list])
-    mat_list = [numpy.outer(v,v) for v in v2d_list]
-    mat_1 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_1 += m
-    vec_array = [w*v for w,v in zip(astrometry['vz'],v2d_list)]
-    vec_1 = numpy.zeros(2)
-    for v in vec_array:
-        vec_1 += v
-    #vec_1 = numpy.sum([w*v for w,v in zip(astrometry['vz'],v2d_list)],axis=1)
-    velocity_block = numpy.dot(numpy.linalg.inv(mat_1),vec_1)
-        
-    col_vec_1 = numpy.array([position_block[0,0],position_block[1,0],velocity_block[0]])
-    col_vec_2 = numpy.array([position_block[0,1],position_block[1,1],velocity_block[1]])
-        
-    return (numpy.dot(col_vec_1,col_vec_1)-1)**2+(numpy.dot(col_vec_2,col_vec_2)-1)**2+(numpy.dot(col_vec_1,col_vec_2))**2
+    pivot = fit_rotation_to_astrometry(astrometry,
+                                       trajectory)
+    kop['pivot'] = pivot
+    return eval_chi_2(kop,astrometry)    
 
 def energy_from_phase_space_point(fsp,GM=1):
 
@@ -375,7 +344,7 @@ def fit_parameters_wr(astrometry,GM=1):
                'semilatus rectum':x[0],
                'eccentricity':x[1],
                'periapse time':x[2],
-               'pivot':[0,0,0]}
+               'pivot':numpy.zeros(3)}
         return kop
         
     def func(x):
@@ -387,7 +356,7 @@ def fit_parameters_wr(astrometry,GM=1):
     rl = initial_guess['semilatus rectum']
     e = initial_guess['eccentricity']
     t0 = initial_guess['periapse time']
-        
+
     temp = minimize(func,[rl,e,t0],bounds=[(1e-6,100),(0,0.99),(None,None)])
 
     return unfold_data(temp.x)
@@ -530,13 +499,38 @@ class TestSuite(unittest.TestCase):
     def testBruteForceParameterFit(self):
         
         kop = {'GM':1,
-               'semilatus rectum':numpy.random.rand(),
-               'eccentricity':0.9*numpy.random.rand(),
-               'periapse time':numpy.random.rand(),
-               'pivot':numpy.random.rand(3)}
+               'semilatus rectum':1.5,#numpy.random.rand(),
+               'eccentricity':0.3,#0.9*numpy.random.rand(),
+               'periapse time':0.1,#numpy.random.rand(),
+               'pivot':numpy.array([0.1,-0.2,0.3])}#numpy.random.rand(3)}
         time_list = numpy.linspace(0,10,100)
         astrometry = generate_astrometry(kop,time_list)
         sol = fit_parameters_bf(astrometry)
+        self.assertAlmostEqual(sol['semilatus rectum'],
+                               kop['semilatus rectum'],
+                               places=1)
+        self.assertAlmostEqual(sol['eccentricity'],
+                               kop['eccentricity'],
+                               places=2)
+        self.assertAlmostEqual(sol['periapse time'],
+                               kop['periapse time'],
+                               places=2)
+
+    def testRotationParameterFit(self):
+        
+#        kop = {'GM':1,
+#               'semilatus rectum':numpy.random.rand(),
+#               'eccentricity':0.9*numpy.random.rand(),
+#               'periapse time':numpy.random.rand(),
+#               'pivot':numpy.random.rand(3)}
+        kop = {'GM':1,
+               'semilatus rectum':1.5,#numpy.random.rand(),
+               'eccentricity':0.3,#0.9*numpy.random.rand(),
+               'periapse time':0.1,#numpy.random.rand(),
+               'pivot':numpy.array([0.1,-0.2,0.3])}#numpy.random.rand(3)}
+        time_list = numpy.linspace(0,10,100)
+        astrometry = generate_astrometry(kop,time_list)
+        sol = fit_parameters_wr(astrometry)
         self.assertAlmostEqual(sol['semilatus rectum'],
                                kop['semilatus rectum'],
                                places=1)

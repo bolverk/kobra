@@ -62,14 +62,7 @@ def convert_time2mean_anomaly(time, kop):
     
 def pivot2generator(pivot):
 
-    from sympy import Eijk
-
-    res = numpy.zeros((3,3))
-    for i in range(3):
-        for j in range(3):
-            for k in range(3):
-                res[i,j] -= Eijk(i,j,k)*pivot[k]
-    return res
+    return -numpy.einsum('ijk,k',lcs,pivot)
 
 def calc_pivot_from_gl_rectangle_block(block):
 

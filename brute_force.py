@@ -108,8 +108,8 @@ def generate_complete_trajectory(kop, time_list):
 
     mean_anomalies = convert_time2mean_anomaly(time_list,kop)
     #eccentric_anomalies = numpy.array([eccentric_anomaly_from_mean(kop['eccentricity'],m,tolerance=abs(1e-7*m)) for m in mean_anomalies])
-    eccentric_anomalies = numpy.array([solve_kepler_equation(kop['eccentricity'],m) for m in mean_anomalies])
-    true_anomalies = numpy.array([true_anomaly_from_eccentric(kop['eccentricity'],E) for E in eccentric_anomalies])
+    eccentric_anomalies = numpy.fromiter((solve_kepler_equation(kop['eccentricity'],m) for m in mean_anomalies),dtype=numpy.float)
+    true_anomalies = numpy.fromiter((true_anomaly_from_eccentric(kop['eccentricity'],E) for E in eccentric_anomalies),dtype=numpy.float)
     cos = numpy.cos
     sin = numpy.sin
     sqrt = numpy.sqrt
@@ -117,13 +117,26 @@ def generate_complete_trajectory(kop, time_list):
     rl = kop['semilatus rectum']
     e = kop['eccentricity']
     a = rl/(1-e**2) # Semi major axis
-    radius_list = numpy.array([orbit_radius(a,e,f) for f in true_anomalies])
+    radius_list = numpy.fromiter((orbit_radius(a,e,f)
+                                  for f in true_anomalies),
+                                 dtype=numpy.float)
     #radius_list = numpy.array([rl/(1+e*cos(f)) for f in true_anomalies])
-    position_face_on = numpy.array([r*numpy.array([cos(q),sin(q),0]) for r,q in zip(radius_list,true_anomalies)])
+    x_face_on = radius_list*numpy.cos(true_anomalies)
+    y_face_on = radius_list*numpy.sin(true_anomalies)
+    z_face_on = numpy.zeros_like(radius_list)
+    position_face_on = numpy.vstack((x_face_on,
+                                     y_face_on,
+                                     z_face_on)).T
     rotation = pivot2rotation(kop['pivot'])
-    position_list = numpy.array([numpy.dot(rotation,r) for r in position_face_on])
-    velocity_face_on = numpy.array([sqrt(GM/rl)*numpy.array([-sin(q),e+cos(q),0]) for q in true_anomalies])
-    velocity_list = numpy.array([numpy.dot(rotation,v) for v in velocity_face_on])
+    position_list = numpy.dot(rotation, position_face_on.T).T
+
+    vx_face_on = -numpy.sqrt(GM/rl)*numpy.sin(true_anomalies)
+    vy_face_on = numpy.sqrt(GM/rl)*(e+numpy.cos(true_anomalies))
+    vz_face_on = numpy.zeros_like(true_anomalies)
+    velocity_face_on = numpy.vstack((vx_face_on,
+                                     vy_face_on,
+                                     vz_face_on)).T
+    velocity_list = numpy.dot(rotation,velocity_face_on.T).T
     return {'position':position_list,'velocity':velocity_list}
     
 def generate_astrometry(kop,time_list):
@@ -304,27 +317,16 @@ def calc_gl_position_block(astrometry, trajectory):
 
     s2d_list = trajectory['position'].T[:2].T
     r2d_list = numpy.vstack((astrometry['x'],astrometry['y'])).T
-    mat_list = (numpy.outer(s,s) for s in s2d_list)
-    mat_1 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_1 += m
-    mat_list = (numpy.outer(r,s) for r,s in zip(r2d_list,s2d_list))
-    mat_2 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_2 += m
+    mat_1 = numpy.einsum('ni,nj',s2d_list,s2d_list)
+    mat_2 = numpy.einsum('ni,nj',r2d_list,s2d_list)
+
     return numpy.dot(mat_2,numpy.linalg.inv(mat_1))
 
 def calc_gl_velocity_block(astrometry, trajectory):
 
     v2d_list = trajectory['velocity'].T[:2].T
-    mat_list = (numpy.outer(v,v) for v in v2d_list)
-    mat_1 = numpy.zeros((2,2))
-    for m in mat_list:
-        mat_1 += m
-    vec_array = (w*v for w,v in zip(astrometry['vz'],v2d_list))
-    vec_1 = numpy.zeros(2)
-    for v in vec_array:
-        vec_1 += v
+    mat_1 = numpy.einsum('ni,nj',v2d_list,v2d_list)
+    vec_1 = numpy.einsum('n,ni',astrometry['vz'],v2d_list)
     return numpy.dot(numpy.linalg.inv(mat_1),vec_1)
 
 def fit_parameters_wr(astrometry,GM=1):

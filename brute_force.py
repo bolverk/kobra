@@ -238,7 +238,15 @@ def eval_rotation_chi_2(astrometry, ellipse_params):
     pivot = fit_rotation_to_astrometry(astrometry,
                                        trajectory)
     kop['pivot'] = pivot
-    return eval_chi_2(kop,astrometry)    
+    #return eval_chi_2(kop,astrometry)
+    rotation = pivot2rotation(pivot)
+    for field in ['position','velocity']:
+        trajectory[field] = numpy.dot(rotation,trajectory[field].T).T
+    res = 0
+    res += numpy.sum((astrometry['x']-trajectory['position'].T[0])**2)
+    res += numpy.sum((astrometry['y']-trajectory['position'].T[1])**2)
+    res += numpy.sum((astrometry['vz']-trajectory['velocity'].T[2])**2)
+    return res
 
 def energy_from_phase_space_point(fsp,GM=1):
 

@@ -76,14 +76,7 @@ def calc_pivot_from_gl_rectangle_block(block):
 
 def generator2pivot(generator):
 
-    from sympy import Eijk
-
-    res = numpy.zeros(3)
-    for i in range(3):
-        for j in range(3):
-            for k in range(3):
-                res[i] -= 0.5*Eijk(i,j,k)*generator[j,k]
-    return res
+    return -0.5*numpy.einsum('ijk,jk',lcs,generator)
     
 def generator2rotation(generator):
 

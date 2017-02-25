@@ -523,6 +523,10 @@ def orbital_parameters_from_psp(fsp, grp=1):
            'periapse time':0,
            'GM':grp}
     def normalise_periapse_time():
+        """
+        Calculate peripase time.
+        Also, make sure the periapse time is between 0 and the period
+        """
         res = fsp['time'] - convert_mean_anomaly2time(mea, kop)
         mean_motion = 1.0/numpy.sqrt((1-ecc**2)**3*grp/slr**3)
         period = 2*numpy.pi*mean_motion
@@ -532,8 +536,8 @@ def orbital_parameters_from_psp(fsp, grp=1):
             res -= period
         return res
     kop['periapse time'] = normalise_periapse_time()
-    a = slr/(1-ecc**2)
-    r_2d = orbit_radius(a, ecc, tra)*numpy.array(
+    sma = slr/(1-ecc**2)
+    r_2d = orbit_radius(sma, ecc, tra)*numpy.array(
         [numpy.cos(tra), numpy.sin(tra), 0])
     v_2d = numpy.sqrt(grp/slr)*numpy.array(
         [-numpy.sin(tra), ecc+numpy.cos(tra), 0])
@@ -542,7 +546,7 @@ def orbital_parameters_from_psp(fsp, grp=1):
                                                            fsp['velocity'])))
     return kop
 
-def estimate_initial_parameters(astrometry, GM=1):
+def estimate_initial_parameters(astrometry, grp=1):
 
     """
     Estimates the keplerian orbit parameters. Used as initial guess for the minimisation.
@@ -552,20 +556,20 @@ def estimate_initial_parameters(astrometry, GM=1):
     :return: Keplerian orbit parameters
     """
 
-    vx = numpy.diff(astrometry['x'])/numpy.diff(astrometry['t'])
-    vy = numpy.diff(astrometry['y'])/numpy.diff(astrometry['t'])
+    velx = numpy.diff(astrometry['x'])/numpy.diff(astrometry['t'])
+    vely = numpy.diff(astrometry['y'])/numpy.diff(astrometry['t'])
     vz_mid = mid_array(astrometry['vz'])
     t_mid = mid_array(astrometry['t'])
-    ax = numpy.diff(vx)/numpy.diff(t_mid)
-    ay = numpy.diff(vy)/numpy.diff(t_mid)
-    az = numpy.diff(vz_mid)/numpy.diff(t_mid)
+    accx = numpy.diff(velx)/numpy.diff(t_mid)
+    accy = numpy.diff(vely)/numpy.diff(t_mid)
+    accz = numpy.diff(vz_mid)/numpy.diff(t_mid)
     x_mid_mid = mid_array(mid_array(astrometry['x']))
     y_mid_mid = mid_array(mid_array(astrometry['y']))
-    r_mid_mid = numpy.sqrt(GM/numpy.sqrt(ax**2+ay**2+az**2))
-    z_mid_mid = -az*r_mid_mid**3/GM
+    r_mid_mid = numpy.sqrt(grp/numpy.sqrt(accx**2+accy**2+accz**2))
+    z_mid_mid = -accz*r_mid_mid**3/grp
     t_mid_mid = mid_array(t_mid)
-    vx_mid_mid = mid_array(vx)
-    vy_mid_mid = mid_array(vy)
+    vx_mid_mid = mid_array(velx)
+    vy_mid_mid = mid_array(vely)
     vz_mid_mid = mid_array(vz_mid)
     r_list = numpy.vstack((x_mid_mid, y_mid_mid, z_mid_mid)).T
     v_list = numpy.vstack((vx_mid_mid, vy_mid_mid, vz_mid_mid)).T
@@ -611,7 +615,7 @@ def calc_gl_velocity_block(astrometry, trajectory):
     vec_1 = numpy.einsum('n,ni', astrometry['vz'], v2d_list)
     return numpy.dot(numpy.linalg.inv(mat_1), vec_1)
 
-def fit_parameters_wr(astrometry, GM=1):
+def fit_parameters_wr(astrometry, grp=1):
 
     """
     Fits Keplerian orbital parameters to observational data.
@@ -624,26 +628,40 @@ def fit_parameters_wr(astrometry, GM=1):
 
     from scipy.optimize import minimize
 
-    def unfold_data(x):
+    def unfold_data(arglist):
 
-        kop = {'GM':GM,
-               'semilatus rectum':x[0],
-               'eccentricity':x[1],
-               'periapse time':x[2],
+        """
+        Rearranges arguments into a ditionary
+
+        :param arglist: List of arguments
+        :return: Arguments arranged in a dictionary
+        """
+
+        kop = {'GM':grp,
+               'semilatus rectum':arglist[0],
+               'eccentricity':arglist[1],
+               'periapse time':arglist[2],
                'pivot':numpy.zeros(3)}
         return kop
 
-    def func(x):
+    def func(arglist):
 
-        kop = unfold_data(x)
+        """
+        Evaluates chi squared
+
+        :param arglist: List of arguments
+        :return: Value of chi squared
+        """
+
+        kop = unfold_data(arglist)
         return eval_rotation_chi_2(astrometry, kop)
 
-    initial_guess = estimate_initial_parameters(astrometry, GM)
-    rl = initial_guess['semilatus rectum']
-    e = initial_guess['eccentricity']
-    t0 = initial_guess['periapse time']
+    initial_guess = estimate_initial_parameters(astrometry, grp)
+    slr = initial_guess['semilatus rectum']
+    ecc = initial_guess['eccentricity']
+    top = initial_guess['periapse time']
 
-    temp = minimize(func, [rl, e, t0],
+    temp = minimize(func, [slr, ecc, top],
                     bounds=
                     [(1e-6, 100),
                      (0, 0.99),

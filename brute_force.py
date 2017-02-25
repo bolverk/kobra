@@ -471,7 +471,20 @@ def angular_momentum_from_psp(psp):
 
     return numpy.cross(psp['position'], psp['velocity'])
 
-def orbital_parameters_from_phase_space_point(fsp, GM=1):
+def mean_anomaly_from_true(ecc, tra):
+
+    """
+    Calculates the mean anomaly from the true anomaly
+
+    :param ecc: Eccentricity
+    :param tra: True anomaly
+    :return: Mean anomaly
+    """
+
+    eca = eccentric_anomaly_from_true(ecc, tra)
+    return mean_anomaly_from_eccentric(ecc, eca)
+
+def orbital_parameters_from_psp(fsp, grp=1):
 
     """
     Reproduces the Keplerian orbital parameters from a position and velocity
@@ -481,33 +494,41 @@ def orbital_parameters_from_phase_space_point(fsp, GM=1):
     :return: Keplerian orbit parameters
     """
 
-    r = numpy.linalg.norm(fsp['position'])
-    l = angular_momentum_from_psp(fsp)
-    u = energy_from_phase_space_point(fsp, GM)
-    rl = sqr_norm(l)/GM
-    e = numpy.sqrt(1+2*sqr_norm(l)*u/GM**2)
-    cosq = (rl/r-1)
-    sinq = numpy.dot(fsp['position'], fsp['velocity'])/numpy.sqrt(GM/rl)/r
-    q = numpy.arctan2(sinq, cosq)
-    #q = numpy.arccos((rl/r-1)/e)
-    E = eccentric_anomaly_from_true(e, q)
-    M = mean_anomaly_from_eccentric(e, E)
-    kop = {'semilatus rectum':rl,
-           'eccentricity':e,
+    def slr_eccentricity_formula():
+        enr = energy_from_phase_space_point(fsp, grp)
+        anm = angular_momentum_from_psp(fsp)
+        ecc = numpy.sqrt(1+2*sqr_norm(anm)*enr/grp**2)
+        slr = sqr_norm(anm)/grp
+        return slr, ecc
+    slr, ecc = slr_eccentricity_formula()
+    def true_anomaly_formula():
+        rad = numpy.linalg.norm(fsp['position'])
+        cosq = (slr/rad-1)
+        sinq = numpy.dot(fsp['position'],
+                         fsp['velocity'])/numpy.sqrt(grp/slr)/rad
+        return numpy.arctan2(sinq, cosq)
+    q = true_anomaly_formula()
+    M = mean_anomaly_from_true(ecc, q)
+    kop = {'semilatus rectum':slr,
+           'eccentricity':ecc,
            'periapse time':0,
-           'GM':GM}
+           'GM':grp}
     dt = convert_mean_anomaly2time(M, kop)
-    kop['periapse time'] = fsp['time']-dt
-    mean_motion = 1.0/numpy.sqrt((1-e**2)**3*GM/rl**3)
-    period = 2*numpy.pi*mean_motion
-    while kop['periapse time'] < 0:
-        kop['periapse time'] += period
-    while kop['periapse time'] > period:
-        kop['periapse time'] -= period
-    a = rl/(1-e**2)
-    r_2d = orbit_radius(a, e, q)*numpy.array(
+    def normalise_periapse_time():
+        res = fsp['time'] - dt
+        mean_motion = 1.0/numpy.sqrt((1-ecc**2)**3*grp/slr**3)
+        period = 2*numpy.pi*mean_motion
+        while res < 0:
+            res += period
+        while res > period:
+            res -= period
+        return res
+    kop['periapse time'] = normalise_periapse_time()
+    a = slr/(1-ecc**2)
+    r_2d = orbit_radius(a, ecc, q)*numpy.array(
         [numpy.cos(q), numpy.sin(q), 0])
-    v_2d = numpy.sqrt(GM/rl)*numpy.array([-numpy.sin(q), e+numpy.cos(q), 0])
+    v_2d = numpy.sqrt(grp/slr)*numpy.array(
+        [-numpy.sin(q), ecc+numpy.cos(q), 0])
     kop['pivot'] = calc_best_cayley_rotation(numpy.vstack((r_2d, v_2d)),
                                              numpy.vstack((fsp['position'],
                                                            fsp['velocity'])))
@@ -540,7 +561,7 @@ def estimate_initial_parameters(astrometry, GM=1):
     vz_mid_mid = mid_array(vz_mid)
     r_list = numpy.vstack((x_mid_mid, y_mid_mid, z_mid_mid)).T
     v_list = numpy.vstack((vx_mid_mid, vy_mid_mid, vz_mid_mid)).T
-    kop_list = [orbital_parameters_from_phase_space_point(
+    kop_list = [orbital_parameters_from_psp(
         {'position':r, 'velocity':v, 'time':t})
                 for r, v, t in zip(r_list, v_list, t_mid_mid)]
     res = {field:numpy.average([kop[field] for kop in kop_list])

@@ -556,26 +556,27 @@ def estimate_initial_parameters(astrometry, grp=1):
     :return: Keplerian orbit parameters
     """
 
-    velx = numpy.diff(astrometry['x'])/numpy.diff(astrometry['t'])
-    vely = numpy.diff(astrometry['y'])/numpy.diff(astrometry['t'])
-    vz_mid = mid_array(astrometry['vz'])
-    t_mid = mid_array(astrometry['t'])
-    accx = numpy.diff(velx)/numpy.diff(t_mid)
-    accy = numpy.diff(vely)/numpy.diff(t_mid)
-    accz = numpy.diff(vz_mid)/numpy.diff(t_mid)
-    x_mid_mid = mid_array(mid_array(astrometry['x']))
-    y_mid_mid = mid_array(mid_array(astrometry['y']))
-    r_mid_mid = numpy.sqrt(grp/numpy.sqrt(accx**2+accy**2+accz**2))
-    z_mid_mid = -accz*r_mid_mid**3/grp
-    t_mid_mid = mid_array(t_mid)
-    vx_mid_mid = mid_array(velx)
-    vy_mid_mid = mid_array(vely)
-    vz_mid_mid = mid_array(vz_mid)
-    r_list = numpy.vstack((x_mid_mid, y_mid_mid, z_mid_mid)).T
-    v_list = numpy.vstack((vx_mid_mid, vy_mid_mid, vz_mid_mid)).T
+    mid = {'vx':numpy.diff(astrometry['x'])/numpy.diff(astrometry['t']),
+           'vy':numpy.diff(astrometry['y'])/numpy.diff(astrometry['t']),
+           'vz':mid_array(astrometry['vz']),
+           't':mid_array(astrometry['t'])}
+    mid2 = {'ax':numpy.diff(mid['vx'])/numpy.diff(mid['t']),
+            'ay':numpy.diff(mid['vy'])/numpy.diff(mid['t']),
+            'az':numpy.diff(mid['vz'])/numpy.diff(mid['t']),
+            'x':mid_array(mid_array(astrometry['x'])),
+            'y':mid_array(mid_array(astrometry['y'])),
+            'vx':mid_array(mid['vx']),
+            'vy':mid_array(mid['vy']),
+            'vz':mid_array(mid['vz'])}
+    mid2['r'] = numpy.sqrt(grp/numpy.sqrt(
+        mid2['ax']**2+mid2['ay']**2+mid2['az']**2))
+    mid2['z'] = -mid2['az']*mid2['r']**3/grp
+    mid2['t'] = mid_array(mid['t'])
+    r_list = numpy.vstack((mid2['x'], mid2['y'], mid2['z'])).T
+    v_list = numpy.vstack((mid2['vx'], mid2['vy'], mid2['vz'])).T
     kop_list = [orbital_parameters_from_psp(
         {'position':r, 'velocity':v, 'time':t})
-                for r, v, t in zip(r_list, v_list, t_mid_mid)]
+                for r, v, t in zip(r_list, v_list, mid2['t'])]
     res = {field:numpy.average([kop[field] for kop in kop_list])
            for field in kop_list[0] if not field == 'pivot'}
     res['pivot'] = numpy.sum((kop['pivot'] for kop in kop_list))/len(kop_list)

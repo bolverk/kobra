@@ -5,7 +5,7 @@ This modules calculates keplerian orbit parameters from observational data
 import unittest
 import numpy
 from orbital.utilities import eccentric_anomaly_from_true, true_anomaly_from_eccentric
-from orbital.utilities import mean_anomaly_from_eccentric, eccentric_anomaly_from_mean
+from orbital.utilities import mean_anomaly_from_eccentric
 from orbital.utilities import orbit_radius
 from sympy import Eijk
 
@@ -495,6 +495,11 @@ def orbital_parameters_from_psp(fsp, grp=1):
     """
 
     def slr_eccentricity_formula():
+        """
+        Calculates the semilatus rectum and eccentricity
+
+        :return: Semilatus rectum and eccentricity
+        """
         enr = energy_from_phase_space_point(fsp, grp)
         anm = angular_momentum_from_psp(fsp)
         ecc = numpy.sqrt(1+2*sqr_norm(anm)*enr/grp**2)
@@ -502,20 +507,24 @@ def orbital_parameters_from_psp(fsp, grp=1):
         return slr, ecc
     slr, ecc = slr_eccentricity_formula()
     def true_anomaly_formula():
+        """
+        Calculates the true anomaly
+
+        :return: True anomaly
+        """
         rad = numpy.linalg.norm(fsp['position'])
         cosq = (slr/rad-1)
         sinq = numpy.dot(fsp['position'],
                          fsp['velocity'])/numpy.sqrt(grp/slr)/rad
         return numpy.arctan2(sinq, cosq)
-    q = true_anomaly_formula()
-    M = mean_anomaly_from_true(ecc, q)
+    tra = true_anomaly_formula()
+    mea = mean_anomaly_from_true(ecc, tra)
     kop = {'semilatus rectum':slr,
            'eccentricity':ecc,
            'periapse time':0,
            'GM':grp}
-    dt = convert_mean_anomaly2time(M, kop)
     def normalise_periapse_time():
-        res = fsp['time'] - dt
+        res = fsp['time'] - convert_mean_anomaly2time(mea, kop)
         mean_motion = 1.0/numpy.sqrt((1-ecc**2)**3*grp/slr**3)
         period = 2*numpy.pi*mean_motion
         while res < 0:
@@ -525,10 +534,10 @@ def orbital_parameters_from_psp(fsp, grp=1):
         return res
     kop['periapse time'] = normalise_periapse_time()
     a = slr/(1-ecc**2)
-    r_2d = orbit_radius(a, ecc, q)*numpy.array(
-        [numpy.cos(q), numpy.sin(q), 0])
+    r_2d = orbit_radius(a, ecc, tra)*numpy.array(
+        [numpy.cos(tra), numpy.sin(tra), 0])
     v_2d = numpy.sqrt(grp/slr)*numpy.array(
-        [-numpy.sin(q), ecc+numpy.cos(q), 0])
+        [-numpy.sin(tra), ecc+numpy.cos(tra), 0])
     kop['pivot'] = calc_best_cayley_rotation(numpy.vstack((r_2d, v_2d)),
                                              numpy.vstack((fsp['position'],
                                                            fsp['velocity'])))
@@ -643,10 +652,6 @@ def fit_parameters_wr(astrometry, GM=1):
 
     return unfold_data(temp.x)
 
-"""
-Tests
-"""
-
 class TestSuite(unittest.TestCase):
 
     """
@@ -659,7 +664,9 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion of a pivot vector to a generator
         """
 
-        pivot = numpy.random.rand(3)
+        from numpy.random import rand
+
+        pivot = rand(3)
         generator = pivot2generator(pivot)
         for i in range(3):
             self.assertEqual(generator[i, i], 0)
@@ -683,7 +690,7 @@ class TestSuite(unittest.TestCase):
         for i in range(3):
             for j in range(3):
                 res += temp[i, j]**2
-        self.assertTrue(1e-10 > res)
+        self.assertTrue(res < 1e-10)
 
     def testTime2MeanAnomalyConversionCircularMotion(self):
 
@@ -691,7 +698,7 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion of time to mean anomaly, for the secular case of circular motion
         """
 
-        for i in range(1000):
+        for _ in range(1000):
             kop = {'GM':1.0,
                    'semilatus rectum':numpy.random.rand(),
                    'eccentricity':0,
@@ -708,7 +715,7 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion of mean anomaly to time for the secular case of circular motion
         """
 
-        for i in range(1000):
+        for _ in range(1000):
             kop = {'GM':1.0,
                    'semilatus rectum':numpy.random.rand(),
                    'eccentricity':0,
@@ -725,7 +732,7 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion back and forth between mean and true anomaly
         """
 
-        for i in range(1000):
+        for _ in range(1000):
             kop = {'GM':1.0,
                    'semilatus rectum':numpy.random.rand(),
                    'eccentricity':numpy.random.rand(),
@@ -777,7 +784,7 @@ class TestSuite(unittest.TestCase):
         time_list = numpy.linspace(0, 10, 100)
         astrometry = generate_astrometry(ref_kop, time_list)
         ref_chi_2 = eval_chi_2(ref_kop, astrometry)
-        for i in range(10):
+        for _ in range(10):
             kop = {'GM':1.0,
                    'semilatus rectum':numpy.random.rand(),
                    'eccentricity':0.2*numpy.random.rand(),
@@ -798,7 +805,6 @@ class TestSuite(unittest.TestCase):
                'periapse time':0.2,
                'pivot':numpy.random.rand(3)}
         time_list = numpy.linspace(0, 10, 10000)
-        ct = generate_complete_trajectory(kop, time_list)
         astrometry = generate_astrometry(kop, time_list)
         sol = estimate_initial_parameters(astrometry, GM=kop['GM'])
 
@@ -875,8 +881,10 @@ class TestSuite(unittest.TestCase):
         Verifies that the Cayley rotation function reproduces the pivot vector
         """
 
-        x_list = numpy.random.rand(100, 3)
-        pivot = numpy.random.rand(3)
+        from numpy.random import rand
+
+        x_list = rand(100, 3)
+        pivot = rand(3)
         rotation = pivot2rotation(pivot)
         y_list = numpy.dot(rotation, x_list.T).T
         reproduced = calc_best_cayley_rotation(x_list, y_list)
@@ -890,14 +898,16 @@ class TestSuite(unittest.TestCase):
         transformation that aligns the theoretical and observational data
         """
 
+        from numpy.random import rand
+
         kop = {'GM':1,
-               'semilatus rectum':numpy.random.rand(),
-               'eccentricity':numpy.random.rand(),
-               'periapse time':numpy.random.rand(),
+               'semilatus rectum':rand(),
+               'eccentricity':rand(),
+               'periapse time':rand(),
                'pivot':numpy.zeros(3)}
         time_list = numpy.linspace(0, 10, 1000)
         ct = generate_complete_trajectory(kop, time_list)
-        kop['pivot'] = numpy.random.rand(3)
+        kop['pivot'] = rand(3)
         rotation = pivot2rotation(kop['pivot'])
         ad = generate_astrometry(kop, time_list)
         position_block = calc_gl_position_block(ad, ct)
@@ -913,7 +923,9 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion back and forth between anti symmetric generator and pivot vector
         """
 
-        pivot = numpy.random.rand(3)
+        from numpy.random import rand
+
+        pivot = rand(3)
         generator = pivot2generator(pivot)
         reproduced = generator2pivot(generator)
         for a, b in zip(pivot, reproduced):
@@ -925,7 +937,9 @@ class TestSuite(unittest.TestCase):
         Verifies the calculation of a pivot vector from a general linear transformation
         """
 
-        pivot = numpy.random.rand(3)
+        from numpy.random import rand
+
+        pivot = rand(3)
         rotation = pivot2rotation(pivot)
         proj = numpy.zeros((2, 3))
         proj[0, 0] = 1
@@ -941,7 +955,9 @@ class TestSuite(unittest.TestCase):
         Verifies the conversion back and forth between pivot vector and rotation matrix
         """
 
-        pivot = numpy.random.rand(3)
+        from numpy.random import rand
+
+        pivot = rand(3)
         rotation = pivot2rotation(pivot)
         reproduced = rotation2pivot(rotation)
         for a, b in zip(pivot, reproduced):
@@ -953,16 +969,16 @@ class TestSuite(unittest.TestCase):
         Verifies the calculation of rotation matrix, in the limit of small rotation angles
         """
 
-        from time import time
+        from numpy.random import rand
 
         kop = {'GM':1,
-               'semilatus rectum':numpy.random.rand(),
-               'eccentricity':numpy.random.rand(),
-               'periapse time':numpy.random.rand(),
+               'semilatus rectum':rand(),
+               'eccentricity':rand(),
+               'periapse time':rand(),
                'pivot':numpy.zeros(3)}
         time_list = numpy.linspace(0, 10, 1000)
         ct = generate_complete_trajectory(kop, time_list)
-        kop['pivot'] = 1e-4*numpy.random.rand(3)
+        kop['pivot'] = 1e-4*rand(3)
         ad = generate_astrometry(kop, time_list)
         reproduced = fit_small_rotation(ad, ct)
         for a, b in zip(kop['pivot'], reproduced):
@@ -974,16 +990,16 @@ class TestSuite(unittest.TestCase):
         Verifies the calculation of a rotation matrix, without assuming small rotation angles
         """
 
-        from time import time
+        from numpy.random import rand
 
         kop = {'GM':1,
-               'semilatus rectum':numpy.random.rand(),
-               'eccentricity':numpy.random.rand(),
-               'periapse time':numpy.random.rand(),
+               'semilatus rectum':rand(),
+               'eccentricity':rand(),
+               'periapse time':rand(),
                'pivot':numpy.zeros(3)}
         time_list = numpy.linspace(0, 10, 1000)
         ct = generate_complete_trajectory(kop, time_list)
-        kop['pivot'] = numpy.random.rand(3)
+        kop['pivot'] = rand(3)
         ad = generate_astrometry(kop, time_list)
         reproduced = fit_rotation_to_astrometry(ad, ct, n_itr=3)
         for a, b in zip(kop['pivot'], reproduced):

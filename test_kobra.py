@@ -27,4 +27,11 @@ class TestSuite(unittest.TestCase):
         od = generate_observational_data(rtbpp, t_list)
         reproduced = estimate_rtbp_parameters(od)
         for vname in reproduced:
-            self.assertAlmostEqual(rtbpp[vname], reproduced[vname], places=3)
+            if not vname=='distance':
+                self.assertAlmostEqual(reproduced[vname],
+                                       rtbpp[vname],
+                                       places=3)
+            if vname=='distance':
+                val1 = reproduced[vname]
+                val2 = rtbpp[vname]
+                self.assertTrue(abs(val1-val2)/abs(val1+val2)<0.01)

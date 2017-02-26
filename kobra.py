@@ -113,7 +113,6 @@ def estimate_rtbp_parameters(obs):
         return -numpy.dot(
             numpy.linalg.inv(mat),vec)
     hodograph_data = calibrate_hodograph()
-    print hodograph_data
 
     return {'alpha 0':proper_motion[0],
             'dot alpha 0':proper_motion[1],

@@ -8,10 +8,12 @@ class TestSuite(unittest.TestCase):
     Test suite for this module
     """
 
-    def test_guess_proper_motion(self):
+    def test_guess_parameters(self):
 
-        from kobra import proper_motion_initial_guess
+        from kobra import guess_proper_motion
         from kobra import generate_observational_data
+        from brute_force import pivot2rotation
+        from kobra import guess_lz_over_d2
 
         rtbpp = {'alpha 0':1e-4*numpy.random.rand(),
                  'beta 0':1e-4*numpy.random.rand(),
@@ -26,15 +28,18 @@ class TestSuite(unittest.TestCase):
                  'w 0':1e-4}
         t_list = numpy.linspace(0,50,1e3)
         obs = generate_observational_data(rtbpp, t_list)
-        pmp = proper_motion_initial_guess(obs)
+        pmp = guess_proper_motion(obs)
         field_list = ['alpha 0',
                       'dot alpha 0',
                       'beta 0',
                       'dot beta 0']
         aux = [rtbpp[field] for field in field_list]
-        print pmp, aux
         for itm1, itm2 in zip(pmp,aux):
             self.assertAlmostEqual(itm1,itm2,places=3)
+        l_mag = numpy.sqrt(rtbpp['GM']*rtbpp['semilatus rectum'])
+        rot = pivot2rotation(rtbpp['pivot'])
+        lz_over_d2 = guess_lz_over_d2(obs)
+        self.assertAlmostEqual(lz_over_d2,rot[2,2]*l_mag/rtbpp['distance']**2)
 
     def testEstimateRTBPParameters(self):
 

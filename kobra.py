@@ -23,7 +23,7 @@ def generate_observational_data(rtbpp, t_list):
             rtbpp['beta 0']+rtbpp['dot beta 0']*t_list,
             'vz':ct['velocity'].T[2]+rtbpp['w 0']}
 
-def proper_motion_initial_guess(obs):
+def guess_proper_motion(obs):
 
     """
     Provides an initial guess for the proper motion parameters
@@ -45,6 +45,26 @@ def proper_motion_initial_guess(obs):
     vec = numpy.einsum('n,ni', ztrq, aux)
     mat = numpy.einsum('ni,nj',aux,aux)
     return numpy.dot(numpy.linalg.inv(mat),vec)
+
+def guess_lz_over_d2(obs):
+
+    proper_motion = guess_proper_motion(obs)
+    tb1 = {field:mid_array(obs[field]) for field in obs}
+    for comp in ['alpha','beta']:
+        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    tb1['delta alpha'] = (tb1['alpha']-
+                          proper_motion[0]-
+                          proper_motion[1]*tb1['t'])
+    tb1['delta dot alpha'] = (tb1['dot alpha']-
+                              proper_motion[1])
+    tb1['delta beta'] = (tb1['beta']-
+                         proper_motion[2]-
+                         proper_motion[3]*tb1['t'])
+    tb1['delta dot beta'] = (tb1['dot beta']-
+                             proper_motion[3])
+    return numpy.average(tb1['delta alpha']*tb1['delta dot beta']-
+                         tb1['delta beta']*tb1['delta dot alpha'])
+    
 
 def estimate_rtbp_parameters(obs):
 

@@ -64,7 +64,24 @@ def guess_lz_over_d2(obs):
                              proper_motion[3])
     return numpy.average(tb1['delta alpha']*tb1['delta dot beta']-
                          tb1['delta beta']*tb1['delta dot alpha'])
-    
+
+def guess_angular_momentum_ratios(obs):
+
+    """
+    Provides an initial guess for the ratios between the components of the angular momentum vector
+    """
+
+    proper_motion = guess_proper_motion(obs)
+    tb1 = {field:mid_array(obs[field]) for field in obs}
+    for comp in ['alpha','beta']:
+        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    aux = numpy.vstack((
+        numpy.ones_like(tb1['beta']),
+        -(tb1['dot alpha']-proper_motion[1]),
+        -(tb1['dot beta']-proper_motion[3]))).T
+    vec = numpy.einsum('n,ni',tb1['vz'],aux)
+    mat = numpy.einsum('ni,nj', aux, aux)
+    return numpy.dot(numpy.linalg.inv(mat),vec)
 
 def estimate_rtbp_parameters(obs):
 

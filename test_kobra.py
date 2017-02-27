@@ -14,6 +14,7 @@ class TestSuite(unittest.TestCase):
         from kobra import generate_observational_data
         from brute_force import pivot2rotation
         from kobra import guess_lz_over_d2
+        from kobra import guess_angular_momentum_ratios
 
         rtbpp = {'alpha 0':1e-4*numpy.random.rand(),
                  'beta 0':1e-4*numpy.random.rand(),
@@ -40,6 +41,14 @@ class TestSuite(unittest.TestCase):
         rot = pivot2rotation(rtbpp['pivot'])
         lz_over_d2 = guess_lz_over_d2(obs)
         self.assertAlmostEqual(lz_over_d2,rot[2,2]*l_mag/rtbpp['distance']**2)
+        l_ratios = guess_angular_momentum_ratios(obs)
+        self.assertAlmostEqual(l_ratios[0], rtbpp['w 0'], places=3)
+        self.assertAlmostEqual(l_ratios[1],
+                               rot[0,2]/rot[2,2]*rtbpp['distance'],
+                               places=3)
+        self.assertAlmostEqual(l_ratios[2],
+                               rot[1,2]/rot[2,2]*rtbpp['distance'],
+                               places=3)
 
     def testEstimateRTBPParameters(self):
 

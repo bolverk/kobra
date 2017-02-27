@@ -16,28 +16,35 @@ def generate_observational_data(rtbpp, t_list):
 
     ct = generate_complete_trajectory(rtbpp,t_list)
     
-    #from mpl_toolkits.mplot3d import Axes3D
-    #import matplotlib.pyplot as plt
-    #fig = plt.figure()
-    #ax = fig.add_subplot(111, projection='3d')
-    #ax.scatter(ct['velocity'].T[0],
-    #           ct['velocity'].T[1],
-    #           ct['velocity'].T[2])
-    #ax.axis('equal')
-    #plt.show()
-
-    #import pylab
-    #pylab.plot(ct['velocity'].T[0],
-    #           ct['velocity'].T[1],'.')
-    #pylab.axis('equal')
-    #pylab.show()
-    
     return {'t':t_list,
             'alpha':ct['position'].T[0]/rtbpp['distance']+
             rtbpp['alpha 0']+rtbpp['dot alpha 0']*t_list,
             'beta':ct['position'].T[1]/rtbpp['distance']+
             rtbpp['beta 0']+rtbpp['dot beta 0']*t_list,
             'vz':ct['velocity'].T[2]+rtbpp['w 0']}
+
+def proper_motion_initial_guess(obs):
+
+    """
+    Provides an initial guess for the proper motion parameters
+    """
+
+    tb1 = {field:mid_array(obs[field]) for field in obs}
+    for comp in ['alpha','beta']:
+        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    tb2 = {field:mid_array(tb1[field]) for field in tb1}
+    for comp in ['alpha','beta']:
+        tb2['ddot '+comp] = numpy.diff(tb1['dot '+comp])/numpy.diff(tb1['t'])
+    ztrq = (tb2['ddot beta']*tb2['alpha']-
+            tb2['ddot alpha']*tb2['beta'])
+    aux = numpy.vstack((
+        tb2['ddot beta'],
+        tb2['ddot beta']*tb2['t'],
+        -tb2['ddot alpha'],
+        -tb2['ddot alpha']*tb2['t'])).T
+    vec = numpy.einsum('n,ni', ztrq, aux)
+    mat = numpy.einsum('ni,nj',aux,aux)
+    return numpy.dot(numpy.linalg.inv(mat),vec)
 
 def estimate_rtbp_parameters(obs):
 
@@ -58,6 +65,8 @@ def estimate_rtbp_parameters(obs):
            'beta ddot':numpy.diff(tb1['beta dot'])/numpy.diff(tb1['t']),
            'alpha':mid_array(tb1['alpha']),
            'beta':mid_array(tb1['beta']),
+           'alpha dot':mid_array(tb1['alpha dot']),
+           'beta dot':mid_array(tb1['beta dot']),
            't':mid_array(tb1['t']),
            'vz dot':numpy.diff(tb1['vz'])/numpy.diff(tb1['t'])}
     def calibrate_proper_motion():
@@ -86,8 +95,8 @@ def estimate_rtbp_parameters(obs):
                    temp[2]*(obs['beta']-
                             proper_motion[2]-
                             proper_motion[3]*obs['t']))
-        return temp[0],z_list
-    w_0, z_list = calibrate_z_component()
+        return temp[0],temp[1],temp[2],z_list
+    w_0, dlx2lz, dly2lz, z_list = calibrate_z_component()
     tb1['z'] = mid_array(z_list)
     tb2['z'] = mid_array(tb1['z'])
     tb2['delta alpha'] = (tb2['alpha'] -
@@ -96,6 +105,9 @@ def estimate_rtbp_parameters(obs):
     tb2['delta beta'] = (tb2['beta']-
                          proper_motion[2]-
                          proper_motion[3]*tb2['t'])
+    lz_d2 = numpy.average(
+        (tb2['delta alpha']*(tb2['beta dot']-proper_motion[1])-
+         tb2['delta beta']*(tb2['beta dot']-proper_motion[3])))
     def calibrate_hodograph():
         aux = numpy.vstack((
             (tb1['alpha dot']-proper_motion[1])**2+
@@ -113,6 +125,11 @@ def estimate_rtbp_parameters(obs):
         return -numpy.dot(
             numpy.linalg.inv(mat),vec)
     hodograph_data = calibrate_hodograph()
+    distance = numpy.sqrt(hodograph_data[0])
+    lz = lz_d2*distance**2
+    lx = lz*dlx2lz*lz
+    ly = lz*dly2lz*lz
+    angular_momentum = [lx,ly,lz]
 
     return {'alpha 0':proper_motion[0],
             'dot alpha 0':proper_motion[1],

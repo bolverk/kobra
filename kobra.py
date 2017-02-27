@@ -83,6 +83,30 @@ def guess_angular_momentum_ratios(obs):
     mat = numpy.einsum('ni,nj', aux, aux)
     return numpy.dot(numpy.linalg.inv(mat),vec)
 
+def guess_hodograph(obs):
+
+    temp = guess_angular_momentum_ratios(obs)
+    w_0 = temp[0]
+    proper_motion = guess_proper_motion(obs)
+    tb1 = {field:mid_array(obs[field]) for field in obs}
+    for comp in ['alpha','beta']:
+        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    aux = numpy.vstack((
+        (tb1['dot alpha']-proper_motion[1])**2+
+        (tb1['dot beta']-proper_motion[3])**2,
+        tb1['dot alpha']-proper_motion[1],
+        tb1['dot beta']-proper_motion[3],
+        tb1['vz']-w_0,
+        numpy.ones_like(tb1['vz']))).T
+    mat = numpy.einsum('ni,nj',
+                       aux,
+                       aux)
+    vec = numpy.einsum('n,ni',
+                       (tb1['vz']-w_0)**2,
+                       aux)
+    return -numpy.dot(
+        numpy.linalg.inv(mat),vec)
+
 def estimate_rtbp_parameters(obs):
 
     """

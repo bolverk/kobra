@@ -15,6 +15,7 @@ class TestSuite(unittest.TestCase):
         from brute_force import pivot2rotation
         from kobra import guess_lz_over_d2
         from kobra import guess_angular_momentum_ratios
+        from kobra import guess_hodograph
 
         rtbpp = {'alpha 0':1e-4*numpy.random.rand(),
                  'beta 0':1e-4*numpy.random.rand(),
@@ -27,7 +28,7 @@ class TestSuite(unittest.TestCase):
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
                  'w 0':1e-4}
-        t_list = numpy.linspace(0,50,1e3)
+        t_list = numpy.linspace(0,50,2e3)
         obs = generate_observational_data(rtbpp, t_list)
         pmp = guess_proper_motion(obs)
         field_list = ['alpha 0',
@@ -43,11 +44,16 @@ class TestSuite(unittest.TestCase):
         self.assertAlmostEqual(lz_over_d2,rot[2,2]*l_mag/rtbpp['distance']**2)
         l_ratios = guess_angular_momentum_ratios(obs)
         self.assertAlmostEqual(l_ratios[0], rtbpp['w 0'], places=3)
-        self.assertAlmostEqual(l_ratios[1],
-                               rot[0,2]/rot[2,2]*rtbpp['distance'],
+        self.assertAlmostEqual(l_ratios[1]/rtbpp['distance'],
+                               rot[0,2]/rot[2,2],
                                places=3)
-        self.assertAlmostEqual(l_ratios[2],
-                               rot[1,2]/rot[2,2]*rtbpp['distance'],
+        self.assertAlmostEqual(l_ratios[2]/rtbpp['distance'],
+                               rot[1,2]/rot[2,2],
+                               places=3)
+        hodograph_data = guess_hodograph(obs)
+        self.assertAlmostEqual(numpy.sqrt(hodograph_data[0])/
+                               rtbpp['distance'],
+                               1,
                                places=3)
 
     def testEstimateRTBPParameters(self):

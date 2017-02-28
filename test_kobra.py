@@ -16,6 +16,7 @@ class TestSuite(unittest.TestCase):
         from kobra import guess_lz_over_d2
         from kobra import guess_angular_momentum_ratios
         from kobra import guess_hodograph
+        from kobra import hodograph2physical_params
 
         rtbpp = {'alpha 0':1e-4*numpy.random.rand(),
                  'beta 0':1e-4*numpy.random.rand(),
@@ -50,8 +51,9 @@ class TestSuite(unittest.TestCase):
         self.assertAlmostEqual(l_ratios[2]/rtbpp['distance'],
                                rot[1,2]/rot[2,2],
                                places=3)
-        hodograph_data = guess_hodograph(obs)
-        self.assertAlmostEqual(numpy.sqrt(hodograph_data[0])/
+        hodograph_raw = guess_hodograph(obs)
+        hodograph_data = hodograph2physical_params(hodograph_raw)
+        self.assertAlmostEqual(hodograph_data['distance']/
                                rtbpp['distance'],
                                1,
                                places=3)

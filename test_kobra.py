@@ -52,10 +52,22 @@ class TestSuite(unittest.TestCase):
                                rot[1,2]/rot[2,2],
                                places=3)
         hodograph_raw = guess_hodograph(obs)
-        hodograph_data = hodograph2physical_params(hodograph_raw)
+        hodograph_data = hodograph2physical_params(
+            hodograph_raw,
+            lz_over_d2,
+            l_ratios)
         self.assertAlmostEqual(hodograph_data['distance']/
                                rtbpp['distance'],
                                1,
+                               places=3)
+        self.assertAlmostEqual(hodograph_data['angular momentum'][2],
+                               l_mag*rot[2,2],
+                               places=3)
+        self.assertAlmostEqual(hodograph_data['angular momentum'][1],
+                               l_mag*rot[1,2],
+                               places=3)
+        self.assertAlmostEqual(hodograph_data['angular momentum'][0],
+                               l_mag*rot[0,2],
                                places=3)
 
     def testEstimateRTBPParameters(self):

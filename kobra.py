@@ -65,10 +65,13 @@ def guess_lz_over_d2(obs):
     return numpy.average(tb1['delta alpha']*tb1['delta dot beta']-
                          tb1['delta beta']*tb1['delta dot alpha'])
 
-def hodograph2physical_params(hod):
+def hodograph2physical_params(hod, lz_d2, l_ratios):
 
     res = {}
     res['distance'] = numpy.sqrt(hod[0])
+    res['angular momentum'] = [lz_d2*l_ratios[2]*res['distance'],
+                               lz_d2*l_ratios[2]*res['distance'],
+                               lz_d2*res['distance']**2]
     return res
 
 def guess_angular_momentum_ratios(obs):

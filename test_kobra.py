@@ -49,15 +49,18 @@ class TestSuite(unittest.TestCase):
         self.assertTrue(
             diff_rat(lz_over_d2,
                      rot[2,2]*l_mag/rtbpp['distance']**2)<1e-3)
-        """
         l_ratios = guess_angular_momentum_ratios(obs)
-        self.assertAlmostEqual(l_ratios[0], rtbpp['w 0'], places=3)
-        self.assertAlmostEqual(l_ratios[1]/rtbpp['distance'],
-                               rot[0,2]/rot[2,2],
-                               places=3)
-        self.assertAlmostEqual(l_ratios[2]/rtbpp['distance'],
-                               rot[1,2]/rot[2,2],
-                               places=3)
+        self.assertTrue(
+            diff_rat(l_ratios[0],
+                     rtbpp['w 0'])<1e-3)
+        self.assertTrue(
+            diff_rat(l_ratios[1]/rtbpp['distance'],
+                     rot[0,2]/rot[2,2])<1e-3)
+        self.assertTrue(
+            diff_rat(l_ratios[2]/rtbpp['distance'],
+                     rot[1,2]/rot[2,2])<1e-3)
+            
+        """
         hodograph_raw = guess_hodograph(obs)
         hodograph_data = hodograph2physical_params(
             hodograph_raw,

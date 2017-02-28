@@ -2,6 +2,10 @@ from kobra import estimate_rtbp_parameters
 import numpy
 import unittest
 
+def diff_rat(num_1, num_2):
+
+    return abs(num_1-num_2)/(abs(num_1)+abs(num_2))
+
 class TestSuite(unittest.TestCase):
 
     """
@@ -29,7 +33,7 @@ class TestSuite(unittest.TestCase):
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
                  'w 0':1e-4}
-        t_list = numpy.linspace(0,50,2e3)
+        t_list = numpy.linspace(0,500,2e3)
         obs = generate_observational_data(rtbpp, t_list)
         pmp = guess_proper_motion(obs)
         field_list = ['alpha 0',
@@ -38,7 +42,7 @@ class TestSuite(unittest.TestCase):
                       'dot beta 0']
         aux = [rtbpp[field] for field in field_list]
         for itm1, itm2 in zip(pmp,aux):
-            self.assertAlmostEqual(itm1,itm2,places=3)
+            self.assertTrue(diff_rat(itm1,itm2)<1e-3)
         l_mag = numpy.sqrt(rtbpp['GM']*rtbpp['semilatus rectum'])
         rot = pivot2rotation(rtbpp['pivot'])
         lz_over_d2 = guess_lz_over_d2(obs)
@@ -60,6 +64,9 @@ class TestSuite(unittest.TestCase):
                                rtbpp['distance'],
                                1,
                                places=3)
+        print hodograph_data['angular momentum'][2]
+        print l_mag*rot[2,2]
+        print
         self.assertAlmostEqual(hodograph_data['angular momentum'][2],
                                l_mag*rot[2,2],
                                places=3)
@@ -69,6 +76,13 @@ class TestSuite(unittest.TestCase):
         self.assertAlmostEqual(hodograph_data['angular momentum'][0],
                                l_mag*rot[0,2],
                                places=3)
+        print numpy.dot(hodograph_data['edotmu'],
+                        hodograph_data['edotmu'])
+        print (rtbpp['GM']*rtbpp['eccentricity'])**2
+        self.assertAlmostEqual(1,2)
+        self.assertAlmostEqual(numpy.dot(hodograph_data['edotmu'],
+                                         hodograph_data['edotmu']),
+                               (rtbpp['GM']*rtbpp['eccentricity'])**2)
 
     def testEstimateRTBPParameters(self):
 

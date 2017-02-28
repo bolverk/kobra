@@ -69,9 +69,17 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
 
     res = {}
     res['distance'] = numpy.sqrt(hod[0])
-    res['angular momentum'] = [lz_d2*l_ratios[2]*res['distance'],
-                               lz_d2*l_ratios[2]*res['distance'],
-                               lz_d2*res['distance']**2]
+    res['angular momentum'] = numpy.array(
+        [lz_d2*l_ratios[2]*res['distance'],
+         lz_d2*l_ratios[2]*res['distance'],
+         lz_d2*res['distance']**2])
+    ams = numpy.dot(res['angular momentum'],
+                    res['angular momentum'])
+    lce = numpy.array(hod[1:4])
+    lce[2] *= res['distance']
+    edotmu = -0.5*numpy.cross(res['angular momentum'],
+                              lce)
+    res['edotmu'] = edotmu
     return res
 
 def guess_angular_momentum_ratios(obs):

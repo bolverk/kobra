@@ -25,30 +25,34 @@ class TestSuite(unittest.TestCase):
         rtbpp = {'alpha 0':1e-4,
                  'beta 0':-1e-4,
                  'eccentricity':0.2,
-                 'periapse time':10,
-                 'semilatus rectum':1,
+                 'periapse time':10.0,
+                 'semilatus rectum':0.2,
                  'GM':4.5e-8,
                  'pivot':numpy.array([1,-2,3]),
                  'distance':1e4,
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
                  'w 0':1e-4}
-        t_list = numpy.linspace(0,500,5e3)
+        t_list = numpy.linspace(0,5000,5e3)
         obs = generate_observational_data(rtbpp, t_list)
         pmp = guess_proper_motion(obs)
         field_list = ['alpha 0',
-                      'dot alpha 0',
                       'beta 0',
+                      'dot alpha 0',
                       'dot beta 0']
         aux = [rtbpp[field] for field in field_list]
         for itm1, itm2 in zip(pmp,aux):
-            self.assertTrue(diff_rat(itm1,itm2)<1e-3)
+            self.assertTrue(diff_rat(itm1,itm2)<1e-7)
         l_mag = numpy.sqrt(rtbpp['GM']*rtbpp['semilatus rectum'])
         rot = pivot2rotation(rtbpp['pivot'])
-        lz_over_d2 = guess_lz_over_d2(obs)
+        lz_over_d2 = (pmp[-1] +
+                      (pmp[0]*pmp[3]-
+                       pmp[1]*pmp[2]))
         self.assertTrue(
-            diff_rat(lz_over_d2,
-                     rot[2,2]*l_mag/rtbpp['distance']**2)<1e-3)
+            diff_rat(
+                lz_over_d2,
+                rot[2,2]*l_mag/
+                rtbpp['distance']**2)<1e-7)
         l_ratios = guess_angular_momentum_ratios(obs)
         self.assertTrue(
             diff_rat(l_ratios[0],
@@ -59,21 +63,25 @@ class TestSuite(unittest.TestCase):
         self.assertTrue(
             diff_rat(l_ratios[2]/rtbpp['distance'],
                      rot[1,2]/rot[2,2])<1e-3)
-            
-        """
         hodograph_raw = guess_hodograph(obs)
         hodograph_data = hodograph2physical_params(
             hodograph_raw,
             lz_over_d2,
             l_ratios)
-        print diff_rat(hodograph_data['distance'],
-                       rtbpp['distance'])
         self.assertTrue(
             diff_rat(hodograph_data['distance'],
                      rtbpp['distance'])<1e-2)
-        print hodograph_data['angular momentum'][2]
-        print l_mag*rot[2,2]
-        print
+        self.assertTrue(
+            diff_rat(hodograph_data['angular momentum'][2],
+                     l_mag*rot[2,2])<1e-2)
+        self.assertTrue(
+            diff_rat(hodograph_data['angular momentum'][1],
+                     l_mag*rot[1,2])<1e-2)
+        print hodograph_data['angular momentum'][0], l_mag*rot[0,2]
+        self.assertTrue(
+            diff_rat(hodograph_data['angular momentum'][0],
+                     l_mag*rot[0,2])<1e-2)
+        """
         self.assertAlmostEqual(hodograph_data['angular momentum'][2],
                                l_mag*rot[2,2],
                                places=3)

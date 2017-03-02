@@ -29,29 +29,50 @@ def guess_proper_motion(obs):
     Provides an initial guess for the proper motion parameters
     """
 
+    """
     tb1 = {field:mid_array(obs[field]) for field in obs}
     for comp in ['alpha','beta']:
         tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
     tb2 = {field:mid_array(tb1[field]) for field in tb1}
     for comp in ['alpha','beta']:
         tb2['ddot '+comp] = numpy.diff(tb1['dot '+comp])/numpy.diff(tb1['t'])
-    ztrq = (tb2['ddot beta']*tb2['alpha']-
-            tb2['ddot alpha']*tb2['beta'])
+    """
+
+    from scipy.interpolate import UnivariateSpline
+
+    tb1 = {field:obs[field][2:-2] for field in obs}
+    for comp in ['alpha','beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp],k=5)
+        spl.set_smoothing_factor(0)
+        der = spl.derivative()
+        tb1['dot '+comp] = der(tb1['t'])
+    amo = tb1['dot alpha']*tb1['beta']-tb1['dot beta']*tb1['alpha']
     aux = numpy.vstack((
-        tb2['ddot beta'],
-        tb2['ddot beta']*tb2['t'],
-        -tb2['ddot alpha'],
-        -tb2['ddot alpha']*tb2['t'])).T
-    vec = numpy.einsum('n,ni', ztrq, aux)
+        tb1['dot beta'],
+        -tb1['dot alpha'],
+        tb1['t']*tb1['dot beta']-tb1['beta'],
+        -tb1['t']*tb1['dot alpha']+tb1['alpha'],
+        numpy.ones_like(tb1['beta']))).T
+    vec = numpy.einsum('n,ni', amo, aux)
     mat = numpy.einsum('ni,nj',aux,aux)
-    return numpy.dot(numpy.linalg.inv(mat),vec)
+    return -numpy.dot(numpy.linalg.inv(mat),vec)
 
 def guess_lz_over_d2(obs):
 
+    from scipy.interpolate import UnivariateSpline
+
     proper_motion = guess_proper_motion(obs)
+    """
     tb1 = {field:mid_array(obs[field]) for field in obs}
     for comp in ['alpha','beta']:
         tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    """
+    tb1 = {field:obs[field][2:-2] for field in obs}
+    for comp in ['alpha','beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp], k=5)
+        spl.set_smoothing_factor(0)
+        der = spl.derivative()
+        tb1['dot '+comp] = der(tb1['t'])
     tb1['delta alpha'] = (tb1['alpha']-
                           proper_motion[0]-
                           proper_motion[1]*tb1['t'])
@@ -89,9 +110,19 @@ def guess_angular_momentum_ratios(obs):
     """
 
     proper_motion = guess_proper_motion(obs)
+    """
     tb1 = {field:mid_array(obs[field]) for field in obs}
     for comp in ['alpha','beta']:
         tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    """
+    from scipy.interpolate import UnivariateSpline
+
+    tb1 = {field:obs[field][2:-2] for field in obs}
+    for comp in ['alpha','beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp],k=5)
+        spl.set_smoothing_factor(0)
+        der = spl.derivative()
+        tb1['dot '+comp] = der(tb1['t'])
     aux = numpy.vstack((
         numpy.ones_like(tb1['beta']),
         -(tb1['dot alpha']-proper_motion[1]),
@@ -102,24 +133,33 @@ def guess_angular_momentum_ratios(obs):
 
 def guess_hodograph(obs):
 
+    from scipy.interpolate import UnivariateSpline
+
+    tb1 = {field:obs[field][2:-2] for field in obs}
+    for comp in ['alpha','beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp], k=5)
+        spl.set_smoothing_factor(0)
+        der = spl.derivative()
+        tb1['dot '+comp] = der(tb1['t'])
+
     temp = guess_angular_momentum_ratios(obs)
     w_0 = temp[0]
     proper_motion = guess_proper_motion(obs)
-    tb1 = {field:mid_array(obs[field]) for field in obs}
-    for comp in ['alpha','beta']:
-        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
+    #tb1 = {field:mid_array(obs[field]) for field in obs}
+    #for comp in ['alpha','beta']:
+    #    tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
     aux = numpy.vstack((
         (tb1['dot alpha']-proper_motion[1])**2+
         (tb1['dot beta']-proper_motion[3])**2,
         tb1['dot alpha']-proper_motion[1],
         tb1['dot beta']-proper_motion[3],
         tb1['vz']-w_0,
-        numpy.ones_like(tb1['vz']))).T
+        numpy.ones_like(tb1['vz']))).T/len(tb1['vz'])
     mat = numpy.einsum('ni,nj',
                        aux,
                        aux)
     vec = numpy.einsum('n,ni',
-                       (tb1['vz']-w_0)**2,
+                       (tb1['vz']-w_0)**2/len(tb1['vz']),
                        aux)
     return -numpy.dot(
         numpy.linalg.inv(mat),vec)

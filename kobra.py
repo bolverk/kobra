@@ -130,10 +130,13 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
     ams = numpy.dot(res['angular momentum'],
                     res['angular momentum'])
     lce = numpy.array(hod[1:4])
-    lce[2] *= res['distance']
+    lce[0] /= res['distance']
+    lce[1] /= res['distance']    
     edotmu = -0.5*numpy.cross(res['angular momentum'],
                               lce)
     res['edotmu'] = edotmu
+    res['mu'] = numpy.sqrt(
+        -(ams*hod[4]-numpy.dot(res['edotmu'],res['edotmu'])))
     return res
 
 def estimate_rtbp_parameters(obs):

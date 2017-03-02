@@ -74,27 +74,19 @@ class TestSuite(unittest.TestCase):
         self.assertTrue(
             diff_rat(hodograph_data['angular momentum'][1],
                      l_mag*rot[1,2])<1e-7)
-        print hodograph_data['angular momentum'], l_mag*rot[:,2]
         self.assertTrue(
             diff_rat(hodograph_data['angular momentum'][0],
-                     l_mag*rot[0,2])<1e-2)
-        """
-        self.assertAlmostEqual(hodograph_data['angular momentum'][2],
-                               l_mag*rot[2,2],
-                               places=3)
-        self.assertAlmostEqual(hodograph_data['angular momentum'][1],
-                               l_mag*rot[1,2],
-                               places=3)
-        self.assertAlmostEqual(hodograph_data['angular momentum'][0],
-                               l_mag*rot[0,2],
-                               places=3)
-        print numpy.dot(hodograph_data['edotmu'],
-                        hodograph_data['edotmu'])
-        print (rtbpp['GM']*rtbpp['eccentricity'])**2
-        self.assertAlmostEqual(numpy.dot(hodograph_data['edotmu'],
-                                         hodograph_data['edotmu']),
-                               (rtbpp['GM']*rtbpp['eccentricity'])**2)
-        """
+                     l_mag*rot[0,2])<1e-7)
+        self.assertTrue(
+            diff_rat(
+                numpy.dot(
+                    hodograph_data['edotmu'],
+                    hodograph_data['edotmu']),
+                (rtbpp['GM']*rtbpp['eccentricity'])**2)<1e-7)
+        self.assertTrue(
+            diff_rat(
+                hodograph_data['mu'],
+                rtbpp['GM'])<1e-7)
 
     def testEstimateRTBPParameters(self):
 

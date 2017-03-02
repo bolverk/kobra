@@ -67,14 +67,14 @@ class TestSuite(unittest.TestCase):
             l_ratios)
         self.assertTrue(
             diff_rat(hodograph_data['distance'],
-                     rtbpp['distance'])<1e-2)
+                     rtbpp['distance'])<1e-7)
         self.assertTrue(
             diff_rat(hodograph_data['angular momentum'][2],
-                     l_mag*rot[2,2])<1e-2)
+                     l_mag*rot[2,2])<1e-7)
         self.assertTrue(
             diff_rat(hodograph_data['angular momentum'][1],
-                     l_mag*rot[1,2])<1e-2)
-        print hodograph_data['angular momentum'][0], l_mag*rot[0,2]
+                     l_mag*rot[1,2])<1e-7)
+        print hodograph_data['angular momentum'], l_mag*rot[:,2]
         self.assertTrue(
             diff_rat(hodograph_data['angular momentum'][0],
                      l_mag*rot[0,2])<1e-2)

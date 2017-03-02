@@ -17,7 +17,6 @@ class TestSuite(unittest.TestCase):
         from kobra import guess_proper_motion
         from kobra import generate_observational_data
         from brute_force import pivot2rotation
-        from kobra import guess_lz_over_d2
         from kobra import guess_angular_momentum_ratios
         from kobra import guess_hodograph
         from kobra import hodograph2physical_params
@@ -33,7 +32,7 @@ class TestSuite(unittest.TestCase):
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
                  'w 0':1e-4}
-        t_list = numpy.linspace(0,5000,5e3)
+        t_list = numpy.linspace(0,5000,1e4)
         obs = generate_observational_data(rtbpp, t_list)
         pmp = guess_proper_motion(obs)
         field_list = ['alpha 0',
@@ -45,9 +44,7 @@ class TestSuite(unittest.TestCase):
             self.assertTrue(diff_rat(itm1,itm2)<1e-7)
         l_mag = numpy.sqrt(rtbpp['GM']*rtbpp['semilatus rectum'])
         rot = pivot2rotation(rtbpp['pivot'])
-        lz_over_d2 = (pmp[-1] +
-                      (pmp[0]*pmp[3]-
-                       pmp[1]*pmp[2]))
+        lz_over_d2 = pmp[-1]
         self.assertTrue(
             diff_rat(
                 lz_over_d2,
@@ -56,13 +53,13 @@ class TestSuite(unittest.TestCase):
         l_ratios = guess_angular_momentum_ratios(obs)
         self.assertTrue(
             diff_rat(l_ratios[0],
-                     rtbpp['w 0'])<1e-3)
+                     rtbpp['w 0'])<1e-7)
         self.assertTrue(
             diff_rat(l_ratios[1]/rtbpp['distance'],
-                     rot[0,2]/rot[2,2])<1e-3)
+                     rot[0,2]/rot[2,2])<1e-7)
         self.assertTrue(
             diff_rat(l_ratios[2]/rtbpp['distance'],
-                     rot[1,2]/rot[2,2])<1e-3)
+                     rot[1,2]/rot[2,2])<1e-7)
         hodograph_raw = guess_hodograph(obs)
         hodograph_data = hodograph2physical_params(
             hodograph_raw,

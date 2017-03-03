@@ -6,6 +6,12 @@ def diff_rat(num_1, num_2):
 
     return abs(num_1-num_2)/(abs(num_1)+abs(num_2))
 
+def calc_vector_angle(vec1, vec2):
+
+    cosq = numpy.dot(vec1,vec2)
+    sinq = numpy.linalg.norm(numpy.cross(vec1,vec2))
+    return numpy.arctan2(cosq,sinq)
+
 class TestSuite(unittest.TestCase):
 
     """
@@ -20,6 +26,8 @@ class TestSuite(unittest.TestCase):
         from kobra import guess_angular_momentum_ratios
         from kobra import guess_hodograph
         from kobra import hodograph2physical_params
+        from brute_force import mean_anomaly_from_true
+        from brute_force import convert_mean_anomaly2time
 
         rtbpp = {'alpha 0':1e-4,
                  'beta 0':-1e-4,
@@ -94,6 +102,37 @@ class TestSuite(unittest.TestCase):
         for itm1, itm2 in zip(hodograph_data['pivot'],rtbpp['pivot']):
             self.assertTrue(
                 diff_rat(itm1,itm2)<1e-7)
+        reproduced_slr = numpy.linalg.norm(
+            hodograph_data['angular momentum'])**2/hodograph_data['mu']
+        print reproduced_slr
+        self.assertTrue(
+            diff_rat(reproduced_slr,rtbpp['semilatus rectum'])<1e-7)
+        """
+        x_list = hodograph_data['distance']*(
+            obs['alpha']-pmp[0]-pmp[2]*obs['t'])
+        y_list = hodograph_data['distance']*(
+            obs['beta']-pmp[1]-pmp[3]*obs['t'])
+        z_list = -(
+            (x_list*hodograph_data['angular momentum'][0]-
+             y_list*hodograph_data['angular momentum'][1])/
+            hodograph_data['angular momentum'][2])
+        q_list = numpy.array(
+            [calc_vector_angle(
+                [x,y,z],
+                hodograph_data['eccentricity vector'])
+             for x,y,z in zip(x_list,y_list,z_list)])
+        m_list = numpy.array(
+            [mean_anomaly_from_true(hodograph_data['eccentricity'],q)
+             for q in q_list])
+        reproduced_t0 = numpy.array(
+            [convert_mean_anomaly2time(m,{
+                'eccentricity':hodograph_data['eccentricity'],
+                'periapse time':0
+            })
+             for m in m_list])
+        print reproduced_t0            
+        """
+                  
 
     def testEstimateRTBPParameters(self):
 

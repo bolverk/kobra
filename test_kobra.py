@@ -91,6 +91,9 @@ class TestSuite(unittest.TestCase):
             diff_rat(
                 hodograph_data['eccentricity'],
                 rtbpp['eccentricity'])<1e-7)
+        for itm1, itm2 in zip(hodograph_data['pivot'],rtbpp['pivot']):
+            self.assertTrue(
+                diff_rat(itm1,itm2)<1e-7)
 
     def testEstimateRTBPParameters(self):
 

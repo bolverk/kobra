@@ -137,10 +137,20 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
     res['edotmu'] = edotmu
     res['mu'] = numpy.sqrt(
         -(ams*hod[4]-numpy.dot(res['edotmu'],res['edotmu'])))
-    res['eccentricity vector'] = res['edotmu']/res['mu']
+    res['eccentricity vector'] = -res['edotmu']/res['mu']
     res['eccentricity'] = numpy.sqrt(
         numpy.dot(res['eccentricity vector'],
                   res['eccentricity vector']))
+    x_1 = res['eccentricity']*numpy.array([1,0,0])
+    y_1 = res['eccentricity vector']
+    x_2 = numpy.sqrt(ams)*numpy.array([0,0,1])
+    y_2 = res['angular momentum']
+    res['pivot'] = -2*numpy.linalg.solve(
+        numpy.identity(3)*(numpy.dot(x_1+y_1,x_1+y_1)+
+                           numpy.dot(x_2+y_2,x_2+y_2))-
+        numpy.outer(x_1+y_1,x_1+y_1)-
+        numpy.outer(x_2+y_2,x_2+y_2),
+        numpy.cross(y_1,x_1)+numpy.cross(y_2,x_2))
     return res
 
 def estimate_rtbp_parameters(obs):

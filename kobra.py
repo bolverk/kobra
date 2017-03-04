@@ -163,6 +163,15 @@ def calc_vector_angle(vec1, vec2, pvt):
     
     return numpy.arctan2(sinq,cosq)
 
+def regularise_periapse_time(raw, period):
+
+    res = raw
+    if res<0:
+        res += period
+    if res>period:
+        res -= period
+    return res
+
 def guess_periapse_time(obs,
                         propoer_motion,
                         hodograph_data):
@@ -203,11 +212,8 @@ def guess_periapse_time(obs,
         (1-hodograph_data['eccentricity']**2)**3*
         hodograph_data['mu']/hodograph_data['semilatus rectum']**3)
     period = 2*numpy.pi*mean_motion
-    for i in range(len(t0_array)):
-        while t0_array[i]<0:
-            t0_array[i] += period
-        while t0_array[i]>period:
-            t0_array[i] -= period
+    t0_array = numpy.array([
+        regularise_periapse_time(t, period) for t in t0_array])
     return numpy.average(t0_array)
 
 def merge_dictionaries(dic_list):

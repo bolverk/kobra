@@ -6,18 +6,6 @@ def diff_rat(num_1, num_2):
 
     return abs(num_1-num_2)/(abs(num_1)+abs(num_2))
 
-def calc_vector_angle(vec1, vec2, pvt):
-
-    from math import copysign
-
-    cosq = numpy.dot(vec1,vec2)
-    v1cv2 = numpy.cross(vec1, vec2)
-    sinq = copysign(
-        numpy.linalg.norm(v1cv2),
-        numpy.dot(pvt,v1cv2))
-    
-    return numpy.arctan2(sinq,cosq)
-
 class TestSuite(unittest.TestCase):
 
     """
@@ -34,6 +22,7 @@ class TestSuite(unittest.TestCase):
         from kobra import hodograph2physical_params
         from brute_force import mean_anomaly_from_true
         from brute_force import convert_mean_anomaly2time
+        from kobra import calc_vector_angle
 
         rtbpp = {'alpha 0':1e-4,
                  'beta 0':-1e-4,
@@ -175,9 +164,15 @@ class TestSuite(unittest.TestCase):
         t_list = numpy.linspace(0,5000,1e3)
         od = generate_observational_data(rtbpp, t_list)
         reproduced = estimate_rtbp_parameters(od)
-        for vname in reproduced:
+        for vname in rtbpp:
             print vname, rtbpp[vname], reproduced[vname], diff_rat(rtbpp[vname],reproduced[vname])
-            self.assertTrue(
-                diff_rat(rtbpp[vname],
-                         reproduced[vname])<1e-7)
+            if vname == 'pivot':
+                for i in range(3):
+                    self.assertTrue(
+                        diff_rat(rtbpp['pivot'][i],
+                                 reproduced['pivot'][i])<1e-7)
+            else:
+                self.assertTrue(
+                    diff_rat(rtbpp[vname],
+                             reproduced[vname])<1e-7)
             

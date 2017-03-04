@@ -80,7 +80,8 @@ def guess_angular_momentum_ratios(obs):
         -(tb1['dot beta']-proper_motion['dot beta 0']))).T
     vec = numpy.einsum('n,ni',tb1['vz'],aux)
     mat = numpy.einsum('ni,nj', aux, aux)
-    return numpy.linalg.solve(mat,vec)
+    res = numpy.linalg.solve(mat,vec)
+    return {'w 0':res[0], 'd*lx/lz': res[1], 'd*ly/lz':res[2]}
 
 def guess_hodograph(obs):
 
@@ -94,7 +95,7 @@ def guess_hodograph(obs):
         tb1['dot '+comp] = der(tb1['t'])
 
     temp = guess_angular_momentum_ratios(obs)
-    w_0 = temp[0]
+    w_0 = temp['w 0']
     proper_motion = guess_proper_motion(obs)
     #tb1 = {field:mid_array(obs[field]) for field in obs}
     #for comp in ['alpha','beta']:
@@ -119,8 +120,8 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
     res = {}
     res['distance'] = numpy.sqrt(hod[0])
     res['angular momentum'] = numpy.array(
-        [lz_d2*l_ratios[1]*res['distance'],
-         lz_d2*l_ratios[2]*res['distance'],
+        [lz_d2*l_ratios['d*lx/lz']*res['distance'],
+         lz_d2*l_ratios['d*ly/lz']*res['distance'],
          lz_d2*res['distance']**2])
     ams = numpy.dot(res['angular momentum'],
                     res['angular momentum'])
@@ -148,6 +149,14 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
         numpy.cross(y_1,x_1)+numpy.cross(y_2,x_2))
     return res
 
+def merge_dictionaries(dic_list):
+
+    res = {}
+    for dic in dic_list:
+        for field in dic:
+            res[field] = dic[field]
+    return res
+
 def estimate_rtbp_parameters(obs):
 
     """
@@ -156,5 +165,10 @@ def estimate_rtbp_parameters(obs):
     :param obs: Astrometry and radial velocity
     :return: Parameters for a restricted two body problem
     """
-
-    return {}
+    
+    res = {}
+    pmp = guess_proper_motion(obs)
+    for field in ['alpha 0','beta 0','dot alpha 0','dot beta 0']:
+        res[field] = pmp[field]
+    l_ratios = guess_angular_momentum_ratios(obs)
+    return res

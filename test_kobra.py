@@ -71,13 +71,13 @@ class TestSuite(unittest.TestCase):
                 rtbpp['distance']**2)<1e-7)
         l_ratios = guess_angular_momentum_ratios(obs)
         self.assertTrue(
-            diff_rat(l_ratios[0],
+            diff_rat(l_ratios['w 0'],
                      rtbpp['w 0'])<1e-7)
         self.assertTrue(
-            diff_rat(l_ratios[1]/rtbpp['distance'],
+            diff_rat(l_ratios['d*lx/lz']/rtbpp['distance'],
                      rot[0,2]/rot[2,2])<1e-7)
         self.assertTrue(
-            diff_rat(l_ratios[2]/rtbpp['distance'],
+            diff_rat(l_ratios['d*ly/lz']/rtbpp['distance'],
                      rot[1,2]/rot[2,2])<1e-7)
         hodograph_raw = guess_hodograph(obs)
         hodograph_data = hodograph2physical_params(
@@ -172,10 +172,11 @@ class TestSuite(unittest.TestCase):
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
                  'w 0':1e-4}
-        t_list = numpy.linspace(0,50,1e3)
+        t_list = numpy.linspace(0,5000,1e3)
         od = generate_observational_data(rtbpp, t_list)
         reproduced = estimate_rtbp_parameters(od)
         for vname in reproduced:
+            print vname, rtbpp[vname], reproduced[vname], diff_rat(rtbpp[vname],reproduced[vname])
             self.assertTrue(
                 diff_rat(rtbpp[vname],
                          reproduced[vname])<1e-7)

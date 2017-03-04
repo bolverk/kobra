@@ -6,11 +6,17 @@ def diff_rat(num_1, num_2):
 
     return abs(num_1-num_2)/(abs(num_1)+abs(num_2))
 
-def calc_vector_angle(vec1, vec2):
+def calc_vector_angle(vec1, vec2, pvt):
+
+    from math import copysign
 
     cosq = numpy.dot(vec1,vec2)
-    sinq = numpy.linalg.norm(numpy.cross(vec1,vec2))
-    return numpy.arctan2(cosq,sinq)
+    v1cv2 = numpy.cross(vec1, vec2)
+    sinq = copysign(
+        numpy.linalg.norm(v1cv2),
+        numpy.dot(pvt,v1cv2))
+    
+    return numpy.arctan2(sinq,cosq)
 
 class TestSuite(unittest.TestCase):
 
@@ -32,7 +38,7 @@ class TestSuite(unittest.TestCase):
         rtbpp = {'alpha 0':1e-4,
                  'beta 0':-1e-4,
                  'eccentricity':0.2,
-                 'periapse time':10.0,
+                 'periapse time':1000.0,
                  'semilatus rectum':0.2,
                  'GM':4.5e-8,
                  'pivot':numpy.array([1,-2,3]),
@@ -104,34 +110,46 @@ class TestSuite(unittest.TestCase):
                 diff_rat(itm1,itm2)<1e-7)
         reproduced_slr = numpy.linalg.norm(
             hodograph_data['angular momentum'])**2/hodograph_data['mu']
-        print reproduced_slr
         self.assertTrue(
             diff_rat(reproduced_slr,rtbpp['semilatus rectum'])<1e-7)
-        """
         x_list = hodograph_data['distance']*(
             obs['alpha']-pmp[0]-pmp[2]*obs['t'])
         y_list = hodograph_data['distance']*(
             obs['beta']-pmp[1]-pmp[3]*obs['t'])
         z_list = -(
-            (x_list*hodograph_data['angular momentum'][0]-
+            (x_list*hodograph_data['angular momentum'][0]+
              y_list*hodograph_data['angular momentum'][1])/
             hodograph_data['angular momentum'][2])
         q_list = numpy.array(
             [calc_vector_angle(
                 [x,y,z],
-                hodograph_data['eccentricity vector'])
+                hodograph_data['eccentricity vector'],
+                -hodograph_data['angular momentum'])
              for x,y,z in zip(x_list,y_list,z_list)])
         m_list = numpy.array(
             [mean_anomaly_from_true(hodograph_data['eccentricity'],q)
              for q in q_list])
-        reproduced_t0 = numpy.array(
+        t0_array = obs['t']-numpy.array(
             [convert_mean_anomaly2time(m,{
                 'eccentricity':hodograph_data['eccentricity'],
+                'semilatus rectum':reproduced_slr,
+                'GM':hodograph_data['mu'],
                 'periapse time':0
             })
              for m in m_list])
-        print reproduced_t0            
-        """
+        mean_motion = 1.0/numpy.sqrt(
+            (1-hodograph_data['eccentricity']**2)**3*
+            hodograph_data['mu']/reproduced_slr**3)
+        period = 2*numpy.pi*mean_motion
+        for i in range(len(t0_array)):
+            while t0_array[i]<0:
+                t0_array[i] += period
+            while t0_array[i]>period:
+                t0_array[i] -= period
+        reproduced_t0 = numpy.average(t0_array)
+        self.assertTrue(
+            diff_rat(reproduced_t0,
+                     rtbpp['periapse time'])<1e-7)
                   
 
     def testEstimateRTBPParameters(self):

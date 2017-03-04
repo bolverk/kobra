@@ -215,12 +215,15 @@ def reproduce_true_anomalies(
         x_list*hodograph_data['angular momentum'][0]+
         y_list*hodograph_data['angular momentum'][1])/
                hodograph_data['angular momentum'][2])
-    q_list = numpy.array(
-        [calc_vector_angle(
-            [x, y, z],
+    position_list = numpy.vstack((x_list,
+                                  y_list,
+                                  z_list)).T
+    q_list = numpy.fromiter(
+        (calc_vector_angle(
+            pos,
             hodograph_data['eccentricity vector'],
             -hodograph_data['angular momentum'])
-         for x, y, z in zip(x_list, y_list, z_list)])
+         for pos in position_list), dtype=numpy.float)
     return q_list
 
 def guess_periapse_time(obs,

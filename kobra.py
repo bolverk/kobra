@@ -14,14 +14,14 @@ def generate_observational_data(rtbpp, t_list):
 
     from brute_force import generate_complete_trajectory
 
-    ct = generate_complete_trajectory(rtbpp,t_list)
+    trj = generate_complete_trajectory(rtbpp,t_list)
     
     return {'t':t_list,
-            'alpha':ct['position'].T[0]/rtbpp['distance']+
+            'alpha':trj['position'].T[0]/rtbpp['distance']+
             rtbpp['alpha 0']+rtbpp['dot alpha 0']*t_list,
-            'beta':ct['position'].T[1]/rtbpp['distance']+
+            'beta':trj['position'].T[1]/rtbpp['distance']+
             rtbpp['beta 0']+rtbpp['dot beta 0']*t_list,
-            'vz':ct['velocity'].T[2]+rtbpp['w 0']}
+            'vz':trj['velocity'].T[2]+rtbpp['w 0']}
 
 def guess_proper_motion(obs):
 

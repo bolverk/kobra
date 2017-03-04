@@ -12,7 +12,7 @@ def generate_observational_data(rtbpp, t_list):
 
     from brute_force import generate_complete_trajectory
 
-    trj = generate_complete_trajectory(rtbpp,t_list)
+    trj = generate_complete_trajectory(rtbpp, t_list)
 
     return {'t':t_list,
             'alpha':(trj['position'].T[0]/rtbpp['distance']+
@@ -30,8 +30,8 @@ def guess_proper_motion(obs):
     from scipy.interpolate import UnivariateSpline
 
     tb1 = {field:obs[field][2:-2] for field in obs}
-    for comp in ['alpha','beta']:
-        spl = UnivariateSpline(obs['t'], obs[comp],k=5)
+    for comp in ['alpha', 'beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp], k=5)
         spl.set_smoothing_factor(0)
         der = spl.derivative()
         tb1['dot '+comp] = der(tb1['t'])
@@ -43,8 +43,8 @@ def guess_proper_motion(obs):
         -tb1['t']*tb1['dot alpha']+tb1['alpha'],
         numpy.ones_like(tb1['beta']))).T
     vec = numpy.einsum('n,ni', amo, aux)
-    mat = numpy.einsum('ni,nj',aux,aux)
-    res = -numpy.linalg.solve(mat,vec)
+    mat = numpy.einsum('ni,nj', aux, aux)
+    res = -numpy.linalg.solve(mat, vec)
     res[-1] += res[0]*res[3]-res[1]*res[2]
     return {'alpha 0':res[0],
             'beta 0':res[1],
@@ -62,8 +62,8 @@ def guess_angular_momentum_ratios(obs):
 
     proper_motion = guess_proper_motion(obs)
     tb1 = {field:obs[field][2:-2] for field in obs}
-    for comp in ['alpha','beta']:
-        spl = UnivariateSpline(obs['t'], obs[comp],k=5)
+    for comp in ['alpha', 'beta']:
+        spl = UnivariateSpline(obs['t'], obs[comp], k=5)
         spl.set_smoothing_factor(0)
         der = spl.derivative()
         tb1['dot '+comp] = der(tb1['t'])
@@ -71,9 +71,9 @@ def guess_angular_momentum_ratios(obs):
         numpy.ones_like(tb1['beta']),
         -(tb1['dot alpha']-proper_motion['dot alpha 0']),
         -(tb1['dot beta']-proper_motion['dot beta 0']))).T
-    vec = numpy.einsum('n,ni',tb1['vz'],aux)
+    vec = numpy.einsum('n,ni', tb1['vz'], aux)
     mat = numpy.einsum('ni,nj', aux, aux)
-    res = numpy.linalg.solve(mat,vec)
+    res = numpy.linalg.solve(mat, vec)
     return {'w 0':res[0], 'd*lx/lz': res[1], 'd*ly/lz':res[2]}
 
 def guess_hodograph(obs):
@@ -81,7 +81,7 @@ def guess_hodograph(obs):
     from scipy.interpolate import UnivariateSpline
 
     tb1 = {field:obs[field][2:-2] for field in obs}
-    for comp in ['alpha','beta']:
+    for comp in ['alpha', 'beta']:
         spl = UnivariateSpline(obs['t'], obs[comp], k=5)
         spl.set_smoothing_factor(0)
         der = spl.derivative()
@@ -103,7 +103,7 @@ def guess_hodograph(obs):
     vec = numpy.einsum('n,ni',
                        (tb1['vz']-w_0)**2,
                        aux)
-    return -numpy.linalg.solve(mat,vec)
+    return -numpy.linalg.solve(mat, vec)
 
 def hodograph2physical_params(hod, lz_d2, l_ratios):
 
@@ -122,21 +122,21 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
                               lce)
     res['edotmu'] = edotmu
     res['mu'] = numpy.sqrt(
-        -(ams*hod[4]-numpy.dot(res['edotmu'],res['edotmu'])))
+        -(ams*hod[4]-numpy.dot(res['edotmu'], res['edotmu'])))
     res['eccentricity vector'] = -res['edotmu']/res['mu']
     res['eccentricity'] = numpy.sqrt(
         numpy.dot(res['eccentricity vector'],
                   res['eccentricity vector']))
-    x_1 = res['eccentricity']*numpy.array([1,0,0])
+    x_1 = res['eccentricity']*numpy.array([1, 0, 0])
     y_1 = res['eccentricity vector']
-    x_2 = numpy.sqrt(ams)*numpy.array([0,0,1])
+    x_2 = numpy.sqrt(ams)*numpy.array([0, 0, 1])
     y_2 = res['angular momentum']
     res['pivot'] = -2*numpy.linalg.solve(
-        numpy.identity(3)*(numpy.dot(x_1+y_1,x_1+y_1)+
-                           numpy.dot(x_2+y_2,x_2+y_2))-
-        numpy.outer(x_1+y_1,x_1+y_1)-
-        numpy.outer(x_2+y_2,x_2+y_2),
-        numpy.cross(y_1,x_1)+numpy.cross(y_2,x_2))
+        numpy.identity(3)*(numpy.dot(x_1+y_1, x_1+y_1)+
+                           numpy.dot(x_2+y_2, x_2+y_2))-
+        numpy.outer(x_1+y_1, x_1+y_1)-
+        numpy.outer(x_2+y_2, x_2+y_2),
+        numpy.cross(y_1, x_1)+numpy.cross(y_2, x_2))
     res['semilatus rectum'] = numpy.linalg.norm(
         res['angular momentum'])**2/res['mu']
     return res
@@ -145,20 +145,20 @@ def calc_vector_angle(vec1, vec2, pvt):
 
     from math import copysign
 
-    cosq = numpy.dot(vec1,vec2)
+    cosq = numpy.dot(vec1, vec2)
     v1cv2 = numpy.cross(vec1, vec2)
     sinq = copysign(
         numpy.linalg.norm(v1cv2),
-        numpy.dot(pvt,v1cv2))
+        numpy.dot(pvt, v1cv2))
 
-    return numpy.arctan2(sinq,cosq)
+    return numpy.arctan2(sinq, cosq)
 
 def regularise_periapse_time(raw, period):
 
     res = raw
-    if res<0:
+    if res < 0:
         res += period
-    if res>period:
+    if res > period:
         res -= period
     return res
 
@@ -183,15 +183,15 @@ def guess_periapse_time(obs,
                hodograph_data['angular momentum'][2])
     q_list = numpy.array(
         [calc_vector_angle(
-            [x,y,z],
+            [x, y, z],
             hodograph_data['eccentricity vector'],
             -hodograph_data['angular momentum'])
-         for x,y,z in zip(x_list, y_list, z_list)])
+         for x, y, z in zip(x_list, y_list, z_list)])
     m_list = numpy.array(
-        [mean_anomaly_from_true(hodograph_data['eccentricity'],q)
+        [mean_anomaly_from_true(hodograph_data['eccentricity'], q)
          for q in q_list])
     t0_array = obs['t']-numpy.array(
-        [convert_mean_anomaly2time(m,{
+        [convert_mean_anomaly2time(m, {
             'eccentricity':hodograph_data['eccentricity'],
             'semilatus rectum':hodograph_data['semilatus rectum'],
             'GM':hodograph_data['mu'],
@@ -225,7 +225,7 @@ def estimate_rtbp_parameters(obs):
 
     res = {}
     pmp = guess_proper_motion(obs)
-    for field in ['alpha 0','beta 0','dot alpha 0','dot beta 0']:
+    for field in ['alpha 0', 'beta 0', 'dot alpha 0', 'dot beta 0']:
         res[field] = pmp[field]
     l_ratios = guess_angular_momentum_ratios(obs)
     res['w 0'] = l_ratios['w 0']
@@ -233,7 +233,7 @@ def estimate_rtbp_parameters(obs):
         guess_hodograph(obs),
         pmp['lz/d**2'],
         l_ratios)
-    for field in ['eccentricity','distance','pivot','semilatus rectum']:
+    for field in ['eccentricity', 'distance', 'pivot', 'semilatus rectum']:
         res[field] = hodograph_data[field]
     res['GM'] = hodograph_data['mu']
     res['periapse time'] = guess_periapse_time(obs,

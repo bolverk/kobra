@@ -4,7 +4,7 @@ def generate_observational_data(rtbpp, t_list):
 
     """
     Generates observational data
-    
+
     :param rtbpp: Restricted two body problem parameters
     :param t_list: Time list
     :return: Observational data (astrometry and radial velocity)
@@ -13,12 +13,12 @@ def generate_observational_data(rtbpp, t_list):
     from brute_force import generate_complete_trajectory
 
     trj = generate_complete_trajectory(rtbpp,t_list)
-    
+
     return {'t':t_list,
-            'alpha':trj['position'].T[0]/rtbpp['distance']+
-            rtbpp['alpha 0']+rtbpp['dot alpha 0']*t_list,
-            'beta':trj['position'].T[1]/rtbpp['distance']+
-            rtbpp['beta 0']+rtbpp['dot beta 0']*t_list,
+            'alpha':(trj['position'].T[0]/rtbpp['distance']+
+                     rtbpp['alpha 0']+rtbpp['dot alpha 0']*t_list),
+            'beta':(trj['position'].T[1]/rtbpp['distance']+
+                    rtbpp['beta 0']+rtbpp['dot beta 0']*t_list),
             'vz':trj['velocity'].T[2]+rtbpp['w 0']}
 
 def guess_proper_motion(obs):
@@ -117,7 +117,7 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
                     res['angular momentum'])
     lce = numpy.array(hod[1:4])
     lce[0] /= res['distance']
-    lce[1] /= res['distance']    
+    lce[1] /= res['distance']
     edotmu = -0.5*numpy.cross(res['angular momentum'],
                               lce)
     res['edotmu'] = edotmu
@@ -150,7 +150,7 @@ def calc_vector_angle(vec1, vec2, pvt):
     sinq = copysign(
         numpy.linalg.norm(v1cv2),
         numpy.dot(pvt,v1cv2))
-    
+
     return numpy.arctan2(sinq,cosq)
 
 def regularise_periapse_time(raw, period):
@@ -168,7 +168,7 @@ def guess_periapse_time(obs,
 
     from brute_force import mean_anomaly_from_true
     from brute_force import convert_mean_anomaly2time
-            
+
     x_list = hodograph_data['distance']*(
         obs['alpha']-
         propoer_motion['alpha 0']-
@@ -222,7 +222,7 @@ def estimate_rtbp_parameters(obs):
     :param obs: Astrometry and radial velocity
     :return: Parameters for a restricted two body problem
     """
-    
+
     res = {}
     pmp = guess_proper_motion(obs)
     for field in ['alpha 0','beta 0','dot alpha 0','dot beta 0']:

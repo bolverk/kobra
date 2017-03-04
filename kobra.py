@@ -1,3 +1,7 @@
+"""
+The purpose of this module is to fit Keplerian orbit parameters to observational data
+"""
+
 import numpy
 
 def generate_observational_data(rtbpp, t_list):
@@ -78,6 +82,11 @@ def guess_angular_momentum_ratios(obs):
 
 def guess_hodograph(obs):
 
+    """
+    Provides an initial guess for Keplerian data from the
+    conservation of the Laplace Runge Lenz vector
+    """
+
     from scipy.interpolate import UnivariateSpline
 
     tb1 = {field:obs[field][2:-2] for field in obs}
@@ -106,6 +115,10 @@ def guess_hodograph(obs):
     return -numpy.linalg.solve(mat, vec)
 
 def hodograph2physical_params(hod, lz_d2, l_ratios):
+
+    """
+    Converts raw hodograph data to physical parameters
+    """
 
     res = {}
     res['distance'] = numpy.sqrt(hod[0])
@@ -143,6 +156,10 @@ def hodograph2physical_params(hod, lz_d2, l_ratios):
 
 def calc_vector_angle(vec1, vec2, pvt):
 
+    """
+    Calculates the rotation angle between to vectors, with respect to some pivot
+    """
+
     from math import copysign
 
     cosq = numpy.dot(vec1, vec2)
@@ -155,6 +172,10 @@ def calc_vector_angle(vec1, vec2, pvt):
 
 def regularise_periapse_time(raw, period):
 
+    """
+    Change the periapse time so it would be between 0 and the period
+    """
+
     res = raw
     if res < 0:
         res += period
@@ -165,6 +186,9 @@ def regularise_periapse_time(raw, period):
 def guess_periapse_time(obs,
                         propoer_motion,
                         hodograph_data):
+    """
+    Provides initial guess for the periapse time
+    """
 
     from brute_force import mean_anomaly_from_true
     from brute_force import convert_mean_anomaly2time
@@ -205,14 +229,6 @@ def guess_periapse_time(obs,
     t0_array = numpy.array([
         regularise_periapse_time(t, period) for t in t0_array])
     return numpy.average(t0_array)
-
-def merge_dictionaries(dic_list):
-
-    res = {}
-    for dic in dic_list:
-        for field in dic:
-            res[field] = dic[field]
-    return res
 
 def estimate_rtbp_parameters(obs):
 

@@ -1,7 +1,5 @@
 import numpy
 
-from brute_force import mid_array
-
 def generate_observational_data(rtbpp, t_list):
 
     """
@@ -60,14 +58,9 @@ def guess_angular_momentum_ratios(obs):
     Provides an initial guess for the ratios between the components of the angular momentum vector
     """
 
-    proper_motion = guess_proper_motion(obs)
-    """
-    tb1 = {field:mid_array(obs[field]) for field in obs}
-    for comp in ['alpha','beta']:
-        tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
-    """
     from scipy.interpolate import UnivariateSpline
 
+    proper_motion = guess_proper_motion(obs)
     tb1 = {field:obs[field][2:-2] for field in obs}
     for comp in ['alpha','beta']:
         spl = UnivariateSpline(obs['t'], obs[comp],k=5)
@@ -97,9 +90,6 @@ def guess_hodograph(obs):
     temp = guess_angular_momentum_ratios(obs)
     w_0 = temp['w 0']
     proper_motion = guess_proper_motion(obs)
-    #tb1 = {field:mid_array(obs[field]) for field in obs}
-    #for comp in ['alpha','beta']:
-    #    tb1['dot '+comp] = numpy.diff(obs[comp])/numpy.diff(obs['t'])
     aux = numpy.vstack((
         (tb1['dot alpha']-proper_motion['dot alpha 0'])**2+
         (tb1['dot beta']-proper_motion['dot beta 0'])**2,

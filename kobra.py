@@ -183,24 +183,34 @@ def regularise_periapse_time(raw, period):
         res -= period
     return res
 
-def guess_periapse_time(obs,
-                        propoer_motion,
-                        hodograph_data):
+def calc_period(slr,
+                ecc,
+                grp):
+
     """
-    Provides initial guess for the periapse time
+    Calculates the period of a Keplerian orbit
     """
 
-    from brute_force import mean_anomaly_from_true
-    from brute_force import convert_mean_anomaly2time
+    return 2*numpy.pi/numpy.sqrt(
+        (1-ecc**2)**3*grp/slr**3)
+
+def reproduce_true_anomalies(
+        obs,
+        proper_motion,
+        hodograph_data):
+
+    """
+    Calculates the true anomalies from the observational data
+    """
 
     x_list = hodograph_data['distance']*(
         obs['alpha']-
-        propoer_motion['alpha 0']-
-        propoer_motion['dot alpha 0']*obs['t'])
+        proper_motion['alpha 0']-
+        proper_motion['dot alpha 0']*obs['t'])
     y_list = hodograph_data['distance']*(
         obs['beta']-
-        propoer_motion['beta 0']-
-        propoer_motion['dot beta 0']*obs['t'])
+        proper_motion['beta 0']-
+        proper_motion['dot beta 0']*obs['t'])
     z_list = -((
         x_list*hodograph_data['angular momentum'][0]+
         y_list*hodograph_data['angular momentum'][1])/
@@ -211,6 +221,21 @@ def guess_periapse_time(obs,
             hodograph_data['eccentricity vector'],
             -hodograph_data['angular momentum'])
          for x, y, z in zip(x_list, y_list, z_list)])
+    return q_list
+
+def guess_periapse_time(obs,
+                        proper_motion,
+                        hodograph_data):
+    """
+    Provides initial guess for the periapse time
+    """
+
+    from brute_force import mean_anomaly_from_true
+    from brute_force import convert_mean_anomaly2time
+
+    q_list = reproduce_true_anomalies(obs,
+                                      proper_motion,
+                                      hodograph_data)
     m_list = numpy.array(
         [mean_anomaly_from_true(hodograph_data['eccentricity'], q)
          for q in q_list])
@@ -222,12 +247,12 @@ def guess_periapse_time(obs,
             'periapse time':0
         })
          for m in m_list])
-    mean_motion = 1.0/numpy.sqrt(
-        (1-hodograph_data['eccentricity']**2)**3*
-        hodograph_data['mu']/hodograph_data['semilatus rectum']**3)
-    period = 2*numpy.pi*mean_motion
+    period = calc_period(hodograph_data['semilatus rectum'],
+                         hodograph_data['eccentricity'],
+                         hodograph_data['mu'])
     t0_array = numpy.array([
-        regularise_periapse_time(t, period) for t in t0_array])
+        regularise_periapse_time(t, period)
+        for t in t0_array])
     return numpy.average(t0_array)
 
 def estimate_rtbp_parameters(obs):

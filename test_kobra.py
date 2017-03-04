@@ -53,12 +53,17 @@ class TestSuite(unittest.TestCase):
                       'beta 0',
                       'dot alpha 0',
                       'dot beta 0']
-        aux = [rtbpp[field] for field in field_list]
-        for itm1, itm2 in zip(pmp,aux):
-            self.assertTrue(diff_rat(itm1,itm2)<1e-7)
+        for field in ['alpha 0',
+                      'beta 0',
+                      'dot alpha 0',
+                      'dot beta 0']:
+            self.assertTrue(
+                diff_rat(
+                    rtbpp[field],
+                    pmp[field])<1e-7)
         l_mag = numpy.sqrt(rtbpp['GM']*rtbpp['semilatus rectum'])
         rot = pivot2rotation(rtbpp['pivot'])
-        lz_over_d2 = pmp[-1]
+        lz_over_d2 = pmp['lz/d**2']
         self.assertTrue(
             diff_rat(
                 lz_over_d2,
@@ -113,9 +118,9 @@ class TestSuite(unittest.TestCase):
         self.assertTrue(
             diff_rat(reproduced_slr,rtbpp['semilatus rectum'])<1e-7)
         x_list = hodograph_data['distance']*(
-            obs['alpha']-pmp[0]-pmp[2]*obs['t'])
+            obs['alpha']-pmp['alpha 0']-pmp['dot alpha 0']*obs['t'])
         y_list = hodograph_data['distance']*(
-            obs['beta']-pmp[1]-pmp[3]*obs['t'])
+            obs['beta']-pmp['beta 0']-pmp['dot beta 0']*obs['t'])
         z_list = -(
             (x_list*hodograph_data['angular momentum'][0]+
              y_list*hodograph_data['angular momentum'][1])/
@@ -156,13 +161,13 @@ class TestSuite(unittest.TestCase):
 
         from kobra import generate_observational_data
 
-        rtbpp = {'alpha 0':1e-4*numpy.random.rand(),
-                 'beta 0':1e-4*numpy.random.rand(),
+        rtbpp = {'alpha 0':1e-4,
+                 'beta 0':-1e-4,
                  'eccentricity':0.2,
-                 'periapse time':10,
-                 'semilatus rectum':1,
+                 'periapse time':1000.0,
+                 'semilatus rectum':0.2,
                  'GM':4.5e-8,
-                 'pivot':numpy.random.rand(3),
+                 'pivot':numpy.array([1,-2,3]),
                  'distance':1e4,
                  'dot alpha 0':2.5e-8,
                  'dot beta 0':1e-8,
@@ -171,11 +176,7 @@ class TestSuite(unittest.TestCase):
         od = generate_observational_data(rtbpp, t_list)
         reproduced = estimate_rtbp_parameters(od)
         for vname in reproduced:
-            if not vname=='distance':
-                self.assertAlmostEqual(reproduced[vname],
-                                       rtbpp[vname],
-                                       places=3)
-            if vname=='distance':
-                val1 = reproduced[vname]
-                val2 = rtbpp[vname]
-                self.assertTrue(abs(val1-val2)/abs(val1+val2)<0.01)
+            self.assertTrue(
+                diff_rat(rtbpp[vname],
+                         reproduced[vname])<1e-7)
+            
